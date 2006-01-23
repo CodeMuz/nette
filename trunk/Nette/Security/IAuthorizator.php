@@ -24,7 +24,11 @@
 /**
  * Authorizator checks if a given role has authorization.
  * to access a given resource.
+ *
+ * @author     David Grudl
+ * @copyright  Copyright (c) 2004, 2008 David Grudl
  * @package    Nette::Security
+ * @version    $Revision$ $Date$
  */
 interface IAuthorizator
 {

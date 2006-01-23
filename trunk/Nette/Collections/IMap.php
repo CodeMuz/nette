@@ -23,7 +23,11 @@
 
 /**
  * Represents a generic collection of key/value pairs.
+ *
+ * @author     David Grudl
+ * @copyright  Copyright (c) 2004, 2008 David Grudl
  * @package    Nette::Collections
+ * @version    $Revision$ $Date$
  */
 interface IMap extends ICollection, /*::*/ArrayAccess
 {
