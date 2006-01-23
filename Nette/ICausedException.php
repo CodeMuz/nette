@@ -23,7 +23,11 @@
 
 /**
  * Exception containing a "cause" - another exception that caused this one to get thrown.
+ *
+ * @author     David Grudl
+ * @copyright  Copyright (c) 2004, 2008 David Grudl
  * @package    Nette
+ * @version    $Revision$ $Date$
  */
 interface ICausedException
 {

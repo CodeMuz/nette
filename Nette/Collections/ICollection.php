@@ -23,7 +23,11 @@
 
 /**
  * Defines methods to manipulate generic collections.
+ *
+ * @author     David Grudl
+ * @copyright  Copyright (c) 2004, 2008 David Grudl
  * @package    Nette::Collections
+ * @version    $Revision$ $Date$
  */
 interface ICollection extends /*::*/Countable, /*::*/IteratorAggregate
 {

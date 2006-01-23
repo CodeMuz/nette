@@ -23,7 +23,11 @@
 
 /**
  * Containers are objects that logically contain zero or more IComponent components.
+ *
+ * @author     David Grudl
+ * @copyright  Copyright (c) 2004, 2008 David Grudl
  * @package    Nette
+ * @version    $Revision$ $Date$
  */
 interface IComponentContainer
 {
