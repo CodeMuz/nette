@@ -1,0 +1,95 @@
+<h1>Nette\Templates\CurlyBracketsFilter test</h1>
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<ul class="item" style="background:white" title="&lt;i&gt;Hello&lt;/i&gt;" compact="compact">
+	<li>Escaped: &lt;i&gt;Hello&lt;/i&gt;</li>
+	<li>Non-escaped: <i>Hello</i></li>
+	<li>Escaped expression: &lt;b&gt;hello&lt;/b&gt;</li>
+	<li>Non-escaped expression: <b>hello</b></li>
+	<li>Array access: Mary</li>
+</ul>
+
+{ test} {"test} {'test}
+
+	&lt;i&gt;Hello&lt;/i&gt;
+
+
+	<ul id=":/item">
+	<li id="item-1" class="odd">John</li>
+	
+	
+	<li id="item-2" class="even">Mary</li>
+	
+	
+	<li id="item-3" class="odd">Paul</li>
+	</ul>
+
+
+
+	<p>Included file #1</p>
+
+	<p>Included file #2 (20, &lt;i&gt;Hello&lt;/i&gt;)</p>
+
+
+	<p>Included file #3 (10, &lt;i&gt;Hello&lt;/i&gt;)</p>
+
+
+	<textarea>
+pre
+</textarea>
+
+
+
+<style type="text/css">
+<!--
+#\:\/item {
+	background: blue;
+}
+-->
+</style>
+
+
+
+<script>
+<!--
+alert('</div>');
+
+var prop = ["John","Mary","Paul"];
+
+document.getElementById(":\/item").style.backgroundColor = 'red';
+-->
+</script>
+
+
+<p onclick =
+'alert(&quot;:\/item&quot;);alert("hello");'
+ title=':/item"'
+ style =
+ "color:\:\/item;'"
+>click on me</p>
+
+
+
+<ul>
+	<li>about</li>
+	<li> <ul>
+	<li>product1</li>
+	<li>product2</li>
+</ul>
+ </li>
+	<li>contact</li>
+</ul>
+
+
+
+
+<ul>
+	<li>about</li>
+	<li> <ul>
+	<li>product1</li>
+	<li>product2</li>
+</ul>
+ </li>
+	<li>contact</li>
+</ul>

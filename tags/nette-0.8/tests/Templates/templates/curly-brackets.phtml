@@ -1,0 +1,83 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<ul{attr class('item') style('background', 'white') title($hello) compact(TRUE)}>
+	<li>Escaped: {$hello}</li>
+	<li>Non-escaped: {!hello}</li>
+	<li>Escaped expression: {='<' . 'b' . '>hello' . '</b>'}</li>
+	<li>Non-escaped expression: {!='<' . 'b' . '>hello' . '</b>'}</li>
+	<li>Array access: {$people[1]}</li>
+</ul>
+
+{ test} {"test} {'test}
+
+{* comment *}
+
+{* multi
+line
+comment *}
+
+
+{if $hello}
+	{$hello}
+{elseif $any}
+	{$any}
+{else}
+	none
+{/if}
+
+
+{foreach array(TRUE) as $foo}
+	{foreach $people as $person}
+	{if $iterator->isFirst()}<ul id="{$id}">{/if}
+	<li id="item-{$iterator->getCounter()}" class="{$iterator->isOdd() ? 'odd' : 'even'}">{$person}</li>
+	{if $iterator->isLast()}</ul>{/if}
+	{/foreach}
+{/foreach}
+
+
+
+{include 'subdir/include1.phtml', 'localvar' => 10 |indent}
+
+
+
+<style type="text/css">
+<!--
+#{$id} {
+	background: blue;
+}
+-->
+</style>
+
+
+
+<script>
+<!--
+alert('</div>');
+
+var prop = {$people};
+
+document.getElementById({$id}).style.backgroundColor = 'red';
+-->
+</script>
+
+
+<p onclick =
+'alert({$id});alert("hello");'
+ title='{$id}"'
+ style =
+ "color:{$id};'"
+>click on me</p>
+
+
+
+{include '@menu.phtml'}
+
+
+
+{block #menu}
+<ul>
+	{foreach $menu as $item}
+	<li>{if is_array($item)} {include #this, 'menu' => $item} {else}{$item}{/if}</li>
+	{/foreach}
+</ul>
+{/block}
