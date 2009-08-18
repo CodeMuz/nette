@@ -1,0 +1,7 @@
+#summary Nette Framework Sources
+
+Sources are available at Github http://github.com/dg/nette/tree/master
+
+{{{
+git clone git://github.com/dg/nette.git
+}}}
