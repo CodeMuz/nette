@@ -15,7 +15,6 @@
  * @link       http://nettephp.com
  * @category   Nette
  * @package    Nette\Application
- * @version    $Id$
  */
 
 /*namespace Nette\Application;*/
@@ -348,7 +347,7 @@ class Application extends /*Nette\*/Object
 	{
 		$session = $this->getSession()->getNamespace('Nette.Application/requests');
 		if (isset($session[$key])) {
-			$request = $session[$key];
+			$request = clone $session[$key];
 			unset($session[$key]);
 			$request->setFlag(PresenterRequest::RESTORED, TRUE);
 			throw new ForwardingException($request);

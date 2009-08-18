@@ -15,7 +15,6 @@
  * @link       http://nettephp.com
  * @category   Nette
  * @package    Nette\Forms
- * @version    $Id$
  */
 
 /*namespace Nette\Forms;*/
@@ -48,7 +47,7 @@ class TextInput extends TextBase
 		$this->control->type = 'text';
 		$this->control->size = $cols;
 		$this->control->maxlength = $maxLength;
-		$this->filters[] = /*Nette\*/'String::trim';
+		$this->filters[] = array(/*Nette\*/'String', 'trim');
 		$this->value = '';
 	}
 

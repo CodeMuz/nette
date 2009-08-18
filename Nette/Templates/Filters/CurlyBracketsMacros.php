@@ -15,7 +15,6 @@
  * @link       http://nettephp.com
  * @category   Nette
  * @package    Nette\Templates
- * @version    $Id$
  */
 
 /*namespace Nette\Templates;*/
@@ -93,6 +92,7 @@ class CurlyBracketsMacros extends /*Nette\*/Object
 		'link' => '<?php echo %:macroEscape%(%:macroLink%) ?>',
 		'ifCurrent' => '<?php %:macroIfCurrent%; if ($presenter->getLastCreatedRequestFlag("current")): ?>',
 		'widget' => '<?php %:macroWidget% ?>',
+		'control' => '<?php %:macroWidget% ?>',
 
 		'attr' => '<?php echo Html::el(NULL)->%:macroAttr%attributes() ?>',
 		'contentType' => '<?php %:macroContentType% ?>',
@@ -484,7 +484,7 @@ class CurlyBracketsMacros extends /*Nette\*/Object
 	 */
 	private function macroAttr($content)
 	{
-		return str_replace(') ', ')->', $content . ' ');
+		return preg_replace('#\)\s+#', ')->', $content . ' ');
 	}
 
 
