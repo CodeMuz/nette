@@ -1,0 +1,44 @@
+<ul>
+	<li>lower: {$hello |lower}</li>
+	<li>upper: {$hello |upper}</li>
+	<li>lower & capitalize: {$hello |lower|capitalize}</li>
+	<li>nl2br: {$hello |nl2br}</li>
+	<li>truncate: {$hello |truncate:"10 "|lower}</li>
+	<li>date: {$date|date:'%d.%m.%Y %H:%M:%S'}</li>
+</ul>
+
+<ul>
+	<li>{$hello |h1|h2}</li>
+	<li>{!$hello |h1|h2}</li>
+	<li>{$hello |h2|h1}</li>
+	<li>{!$hello |h2|h1}</li>
+</ul>
+
+
+
+{block  |strip}  <a   href="#"
+> test</a
+
+>
+
+{/block}
+
+
+
+
+{block$capture}
+<ul>
+	<li>lower: {$hello |lower}</li>
+</ul>
+{/block}
+
+<p>
+Captured: {$capture}
+</p>
+
+
+
+
+<p>
+Nested blocks: {block|truncate:20} Outer   {block|upper} Inner Block {/block}  Block {/block}
+</p>
