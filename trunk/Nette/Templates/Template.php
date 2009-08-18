@@ -15,7 +15,6 @@
  * @link       http://nettephp.com
  * @category   Nette
  * @package    Nette\Templates
- * @version    $Id$
  */
 
 /*namespace Nette\Templates;*/
@@ -155,7 +154,7 @@ class Template extends BaseTemplate implements IFileTemplate
 	public static function getCacheStorage()
 	{
 		if (self::$cacheStorage === NULL) {
-			self::$cacheStorage = new TemplateCacheStorage(/*Nette\*/Environment::getVariable('cacheBase'));
+			self::$cacheStorage = new TemplateCacheStorage(/*Nette\*/Environment::getVariable('tempDir'));
 		}
 		return self::$cacheStorage;
 	}

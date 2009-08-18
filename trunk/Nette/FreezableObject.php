@@ -15,7 +15,6 @@
  * @link       http://nettephp.com
  * @category   Nette
  * @package    Nette
- * @version    $Id$
  */
 
 /*namespace Nette;*/
@@ -69,17 +68,6 @@ abstract class FreezableObject extends Object
 	 * @return void
 	 */
 	public function __clone()
-	{
-		$this->frozen = FALSE;
-	}
-
-
-
-	/**
-	 * Creates a modifiable clone of the object.
-	 * @return void
-	 */
-	public function __wakeup()
 	{
 		$this->frozen = FALSE;
 	}

@@ -15,7 +15,6 @@
  * @link       http://nettephp.com
  * @category   Nette
  * @package    Nette
- * @version    $Id$
  */
 
 /*namespace Nette;*/
@@ -59,7 +58,7 @@ final class Environment
 	private static $vars = array(
 		'encoding' => array('UTF-8', FALSE),
 		'lang' => array('en', FALSE),
-		'cacheBase' => array('%tempDir%/cache', TRUE),
+		'cacheBase' => array('%tempDir%', TRUE), // deprecated
 		'tempDir' => array('%appDir%/temp', TRUE),
 		'logDir' => array('%appDir%/log', TRUE),
 		'templatesDir' => array('%appDir%/templates', TRUE),

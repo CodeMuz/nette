@@ -15,7 +15,6 @@
  * @link       http://nettephp.com
  * @category   Nette
  * @package    Nette\Templates
- * @version    $Id$
  */
 
 /*namespace Nette\Templates;*/
@@ -167,6 +166,12 @@ class CurlyBracketsFilter extends /*Nette\*/Object
 
 			} else { // common behaviour
 				$this->output .= $matches[0];
+			}
+		}
+
+		foreach ($this->tags as $tag) {
+			if (!$tag->isMacro && !empty($tag->attrs)) {
+				throw new /*\*/InvalidStateException("Missing end tag </$tag->name> for macro-attribute " . self::HTML_PREFIX . implode(' and ' . self::HTML_PREFIX, array_keys($tag->attrs)) . ".");
 			}
 		}
 
