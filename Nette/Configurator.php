@@ -45,6 +45,7 @@ class Configurator extends Object
 		'Nette\Web\IUser' => 'Nette\Web\User',
 		'Nette\Caching\ICacheStorage' => array(__CLASS__, 'createCacheStorage'),
 		'Nette\Web\Session' => 'Nette\Web\Session',
+		'Nette\Loaders\RobotLoader' => array(__CLASS__, 'createRobotLoader'),
 	);
 
 
@@ -84,16 +85,6 @@ class Configurator extends Object
 
 			} else {
 				return TRUE;
-			}
-
-		case 'debug':
-			// Determines whether the debugger is active
-			if (defined('DEBUG_MODE')) {
-				return (bool) DEBUG_MODE;
-
-			} else {
-				return !Environment::getMode('production') && isset($_REQUEST['DBGSESSID']);
-				// function_exists('DebugBreak');
 			}
 
 		case 'console':
@@ -138,10 +129,21 @@ class Configurator extends Object
 		$config->expand();
 
 		// process services
+		$runServices = array();
 		$locator = Environment::getServiceLocator();
 		if ($config->service instanceof /*Nette\Config\*/Config) {
 			foreach ($config->service as $key => $value) {
-				$locator->addService($value, strtr($key, '-', '\\'));
+				$key = strtr($key, '-', '\\'); // limited INI chars
+				if (is_string($value)) {
+					$locator->addService($key, $value);
+				} else {
+					if ($value->factory) {
+						$locator->addService($key, $value->factory, isset($value->singleton) ? $value->singleton : TRUE, (array) $value->option);
+					}
+					if ($value->run) {
+						$runServices[] = $key;
+					}
+				}
 			}
 		}
 
@@ -228,6 +230,11 @@ class Configurator extends Object
 			}
 		}
 
+		// auto-start services
+		foreach ($runServices as $name) {
+			$locator->getService($name);
+		}
+
 		$config->freeze();
 		return $config;
 	}
@@ -246,7 +253,7 @@ class Configurator extends Object
 	{
 		$locator = new ServiceLocator;
 		foreach ($this->defaultServices as $name => $service) {
-			$locator->addService($service, $name);
+			$locator->addService($name, $service);
 		}
 		return $locator;
 	}
@@ -259,6 +266,22 @@ class Configurator extends Object
 	public static function createCacheStorage()
 	{
 		return new /*Nette\Caching\*/FileStorage(Environment::getVariable('tempDir'));
+	}
+
+
+
+	/**
+	 * @return Nette\Loaders\RobotLoader
+	 */
+	public static function createRobotLoader($options)
+	{
+		$loader = new /*Nette\Loaders\*/RobotLoader;
+		$loader->autoRebuild = !Environment::isProduction();
+		//$loader->setCache(Environment::getCache('Nette.RobotLoader'));
+		$dirs = isset($options['directory']) ? $options['directory'] : array(Environment::getVariable('appDir'), Environment::getVariable('libsDir'));
+		$loader->addDirectory($dirs);
+		$loader->register();
+		return $loader;
 	}
 
 }

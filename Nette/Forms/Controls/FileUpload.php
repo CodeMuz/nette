@@ -42,7 +42,6 @@ class FileUpload extends FormControl
 	 */
 	public function __construct($label = NULL)
 	{
-		$this->monitor('Nette\Forms\Form');
 		parent::__construct($label);
 		$this->control->type = 'file';
 	}
@@ -58,8 +57,12 @@ class FileUpload extends FormControl
 	protected function attached($form)
 	{
 		if ($form instanceof Form) {
+			if ($form->getMethod() !== Form::POST) {
+				throw new /*\*/InvalidStateException('File upload requires method POST.');
+			}
 			$form->getElementPrototype()->enctype = 'multipart/form-data';
 		}
+		parent::attached($form);
 	}
 
 
@@ -67,7 +70,7 @@ class FileUpload extends FormControl
 	/**
 	 * Sets control's value.
 	 * @param  array|Nette\Web\HttpUploadedFile
-	 * @return void
+	 * @return FileUpload  provides a fluent interface
 	 */
 	public function setValue($value)
 	{
@@ -80,6 +83,7 @@ class FileUpload extends FormControl
 		} else {
 			$this->value = new HttpUploadedFile(NULL);
 		}
+		return $this;
 	}
 
 

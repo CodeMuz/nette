@@ -45,10 +45,14 @@ require_once dirname(__FILE__) . '/Object.php';
  */
 class Image extends Object
 {
-	/**#@+ resizing flags {@link resize()} */
+	/** {@link resize()} allows enlarging image (it only shrinks images by default) */
 	const ENLARGE = 1;
+
+	/** {@link resize()} will ignore aspect ratio */
 	const STRETCH = 2;
-	/**#@-*/
+
+	/** {@link resize()} fills (and even overflows) given area */
+	const FILL = 4;
 
 	/**#@+ @int image types {@link send()} */
 	const JPEG = IMAGETYPE_JPEG;
@@ -126,10 +130,27 @@ class Image extends Object
 	/**
 	 * Create a new image from the image stream in the string.
 	 * @param  string
+	 * @param  mixed  detected image format
 	 * @return Image
 	 */
-	public static function fromString($s)
+	public static function fromString($s, & $format = NULL)
 	{
+		if (!extension_loaded('gd')) {
+			throw new /*\*/Exception("PHP extension GD is not loaded.");
+		}
+
+		if (strncmp($s, "\xff\xd8", 2) === 0) {
+			$format = self::JPEG;
+
+		} elseif (strncmp($s, "\x89PNG", 4) === 0) {
+			$format = self::PNG;
+
+		} elseif (strncmp($s, "GIF", 3) === 0) {
+			$format = self::GIF;
+
+		} else {
+			$format = NULL;
+		}
 		return new self(imagecreatefromstring($s));
 	}
 
@@ -156,8 +177,11 @@ class Image extends Object
 
 		$image = imagecreatetruecolor($width, $height);
 		if (is_array($color)) {
-			$color = imagecolorallocate($image, $color['red'], $color['green'], $color['blue']);
-			imagefilledrectangle($image, 0, 0, $width, $height, $color);
+			$color += array('alpha' => 0);
+			$color = imagecolorallocatealpha($image, $color['red'], $color['green'], $color['blue'], $color['alpha']);
+			imagealphablending($image, FALSE);
+			imagefilledrectangle($image, 0, 0, $width - 1, $height - 1, $color);
+			imagealphablending($image, TRUE);
 		}
 		return new self($image);
 	}
@@ -200,7 +224,7 @@ class Image extends Object
 	/**
 	 * Sets image resource.
 	 * @param  resource
-	 * @return void
+	 * @return Image  provides a fluent interface
 	 */
 	protected function setImageResource($image)
 	{
@@ -208,6 +232,7 @@ class Image extends Object
 			throw new /*\*/InvalidArgumentException('Image is not valid.');
 		}
 		$this->image = $image;
+		return $this;
 	}
 
 
@@ -233,7 +258,7 @@ class Image extends Object
 	public function resize($newWidth, $newHeight, $flags = 0)
 	{
 		list($newWidth, $newHeight) = $this->calculateSize($newWidth, $newHeight, $flags);
-		$newImage = imagecreatetruecolor($newWidth, $newHeight);
+		$newImage = self::fromBlank($newWidth, $newHeight, self::RGB(0, 0, 0, 127))->getImageResource();
 		imagecopyresampled($newImage, $this->getImageResource(), 0, 0, 0, 0, $newWidth, $newHeight, $this->getWidth(), $this->getHeight());
 		$this->image = $newImage;
 		return $this;
@@ -292,6 +317,10 @@ class Image extends Object
 				$scale[] = $newHeight / $height;
 			}
 
+			if ($flags & self::FILL) {
+				$scale = array(max($scale));
+			}
+
 			if (($flags & self::ENLARGE) === 0) {
 				$scale[] = 1;
 			}
@@ -308,20 +337,28 @@ class Image extends Object
 
 	/**
 	 * Crops image.
-	 * @param  int    x-coordinate
-	 * @param  int    y-coordinate
+	 * @param  mixed  x-offset in pixels or percent
+	 * @param  mixed  y-offset in pixels or percent
 	 * @param  int    width
 	 * @param  int    height
 	 * @return Image  provides a fluent interface
 	 */
 	public function crop($left, $top, $width, $height)
 	{
+		if (substr($left, -1) === '%') {
+			$left = round(($this->getWidth() - $width) / 100 * $left);
+		}
+
+		if (substr($top, -1) === '%') {
+			$top = round(($this->getHeight() - $height) / 100 * $top);
+		}
+
 		$left = max(0, (int) $left);
 		$top = max(0, (int) $top);
 		$width = min((int) $width, $this->getWidth() - $left);
 		$height = min((int) $height, $this->getHeight() - $top);
 
-		$newImage = imagecreatetruecolor($width, $height);
+		$newImage = self::fromBlank($width, $height, self::RGB(0, 0, 0, 127))->getImageResource();
 		imagecopy($newImage, $this->getImageResource(), 0, 0, $left, $top, $width, $height);
 		$this->image = $newImage;
 		return $this;
@@ -489,7 +526,8 @@ class Image extends Object
 			}
 			array_unshift($args, $this->getImageResource());
 
-			return call_user_func_array($function, $args);
+			$res = call_user_func_array($function, $args);
+			return is_resource($res) ? new self($res) : $res;
 		}
 
 		return parent::__call($name, $args);

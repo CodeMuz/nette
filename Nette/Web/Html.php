@@ -197,7 +197,7 @@ class Html extends /*Nette\*/Object implements /*\*/ArrayAccess, /*\*/Countable,
 			$this->attrs[$m] = $args[0];
 
 		} elseif ($args[0] == NULL) { // intentionally ==
-			// append empty value -> ignore
+			$tmp = & $this->attrs[$m]; // appending empty value? -> ignore, but ensure it exists
 
 		} elseif (!isset($this->attrs[$m]) || is_array($this->attrs[$m])) { // needs array
 			$this->attrs[$m][$args[0]] = $args[1];
@@ -232,8 +232,8 @@ class Html extends /*Nette\*/Object implements /*\*/ArrayAccess, /*\*/Countable,
 	/**
 	 * Sets element's HTML content.
 	 * @param  string
-	 * @throws \InvalidArgumentException
 	 * @return Html  provides a fluent interface
+	 * @throws \InvalidArgumentException
 	 */
 	final public function setHtml($html)
 	{
@@ -273,8 +273,8 @@ class Html extends /*Nette\*/Object implements /*\*/ArrayAccess, /*\*/Countable,
 	/**
 	 * Sets element's textual content.
 	 * @param  string
-	 * @throws \InvalidArgumentException
 	 * @return Html  provides a fluent interface
+	 * @throws \InvalidArgumentException
 	 */
 	final public function setText($text)
 	{
@@ -601,7 +601,7 @@ class Html extends /*Nette\*/Object implements /*\*/ArrayAccess, /*\*/Countable,
  * @copyright  Copyright (c) 2004, 2009 David Grudl
  * @package    Nette\Web
  */
-class RecursiveHtmlIterator extends /*\*/RecursiveArrayIterator
+class RecursiveHtmlIterator extends /*\*/RecursiveArrayIterator implements /*\*/Countable
 {
 
 	/**
@@ -611,6 +611,17 @@ class RecursiveHtmlIterator extends /*\*/RecursiveArrayIterator
 	public function getChildren()
 	{
 		return $this->current()->getIterator();
+	}
+
+
+
+	/**
+	 * Returns the count of elements.
+	 * @return int
+	 */
+	public function count()
+	{
+		return iterator_count($this);
 	}
 
 }

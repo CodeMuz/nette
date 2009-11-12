@@ -86,6 +86,9 @@ final class Debug
 	/** @var callback */
 	public static $mailer = array(__CLASS__, 'defaultMailer');
 
+	/** @var int interval for sending email is 2 days */
+	public static $emailSnooze = 172800;
+
 	/** @var bool {@link Debug::enable()} */
 	private static $enabled = FALSE;
 
@@ -145,15 +148,16 @@ final class Debug
 
 	/**
 	 * Static class constructor.
+	 * @internal
 	 */
-	public static function init()
+	public static function _init()
 	{
 		self::$time = microtime(TRUE);
 		self::$consoleMode = PHP_SAPI === 'cli';
 		self::$productionMode = self::DETECT;
 		self::$firebugDetected = isset($_SERVER['HTTP_USER_AGENT']) && strpos($_SERVER['HTTP_USER_AGENT'], 'FirePHP/');
 		self::$ajaxDetected = isset($_SERVER['HTTP_X_REQUESTED_WITH']) && $_SERVER['HTTP_X_REQUESTED_WITH'] === 'XMLHttpRequest';
-		register_shutdown_function(array(__CLASS__, 'shutdownHandler'));
+		register_shutdown_function(array(__CLASS__, '_shutdownHandler'));
 	}
 
 
@@ -163,7 +167,7 @@ final class Debug
 	 * @return void
 	 * @internal
 	 */
-	public static function shutdownHandler()
+	public static function _shutdownHandler()
 	{
 		// 1) fatal error handler
 		static $types = array(
@@ -174,7 +178,7 @@ final class Debug
 		);
 
 		$error = error_get_last();
-		if (isset($types[$error['type']])) {
+		if (self::$enabled && isset($types[$error['type']])) {
 			if (!headers_sent()) { // for PHP < 5.2.4
 				header('HTTP/1.1 500 Internal Server Error');
 			}
@@ -293,6 +297,16 @@ final class Debug
 	 */
 	private static function _dump(&$var, $level)
 	{
+		static $tableUtf, $tableBin, $re = '#[^\x09\x0A\x0D\x20-\x7E\xA0-\x{10FFFF}]#u';
+		if ($tableUtf === NULL) {
+			foreach (range("\x00", "\xFF") as $ch) {
+				if (ord($ch) < 32 && strpos("\r\n\t", $ch) === FALSE) $tableUtf[$ch] = $tableBin[$ch] = '\\x' . str_pad(dechex(ord($ch)), 2, '0', STR_PAD_LEFT);
+				elseif (ord($ch) < 127) $tableUtf[$ch] = $tableBin[$ch] = $ch;
+				else { $tableUtf[$ch] = $ch; $tableBin[$ch] = '\\x' . dechex(ord($ch)); }
+			}
+			$tableUtf['\\x'] = $tableBin['\\x'] = '\\\\x';
+		}
+
 		if (is_bool($var)) {
 			return "<span>bool</span>(" . ($var ? 'TRUE' : 'FALSE') . ")\n";
 
@@ -311,6 +325,7 @@ final class Debug
 			} else {
 				$s = htmlSpecialChars($var, ENT_NOQUOTES);
 			}
+			$s = strtr($s, preg_match($re, $s) || preg_last_error() ? $tableBin : $tableUtf);
 			return "<span>string</span>(" . strlen($var) . ") \"$s\"\n";
 
 		} elseif (is_array($var)) {
@@ -329,7 +344,8 @@ final class Debug
 				$var[$marker] = 0;
 				foreach ($var as $k => &$v) {
 					if ($k === $marker) continue;
-					$s .= "$space$space1" . (is_int($k) ? $k : "\"$k\"") . " => " . self::_dump($v, $level + 1);
+					$k = is_int($k) ? $k : '"' . strtr($k, preg_match($re, $k) || preg_last_error() ? $tableBin : $tableUtf) . '"';
+					$s .= "$space$space1$k => " . self::_dump($v, $level + 1);
 				}
 				unset($var[$marker]);
 				$s .= "$space}</code>";
@@ -360,6 +376,7 @@ final class Debug
 						$m = $k[1] === '*' ? ' <span>protected</span>' : ' <span>private</span>';
 						$k = substr($k, strrpos($k, "\x00") + 1);
 					}
+					$k = strtr($k, preg_match($re, $k) || preg_last_error() ? $tableBin : $tableUtf);
 					$s .= "$space$space1\"$k\"$m => " . self::_dump($v, $level + 1);
 				}
 				array_pop($list);
@@ -480,8 +497,8 @@ final class Debug
 			define('E_USER_DEPRECATED', 16384);
 		}
 
-		set_exception_handler(array(__CLASS__, 'exceptionHandler'));
-		set_error_handler(array(__CLASS__, 'errorHandler'));
+		set_exception_handler(array(__CLASS__, '_exceptionHandler'));
+		set_error_handler(array(__CLASS__, '_errorHandler'));
 		self::$enabled = TRUE;
 	}
 
@@ -505,7 +522,7 @@ final class Debug
 	 * @return void
 	 * @internal
 	 */
-	public static function exceptionHandler(/*\*/Exception $exception)
+	public static function _exceptionHandler(/*\*/Exception $exception)
 	{
 		if (!headers_sent()) {
 			header('HTTP/1.1 500 Internal Server Error');
@@ -529,7 +546,7 @@ final class Debug
 	 * @throws \FatalErrorException
 	 * @internal
 	 */
-	public static function errorHandler($severity, $message, $file, $line, $context)
+	public static function _errorHandler($severity, $message, $file, $line, $context)
 	{
 		if ($severity === E_RECOVERABLE_ERROR || $severity === E_USER_ERROR) {
 			throw new /*\*/FatalErrorException($message, 0, $severity, $file, $line, $context);
@@ -538,6 +555,9 @@ final class Debug
 			return NULL; // nothing to do
 
 		} elseif (self::$strictMode) {
+			if (!headers_sent()) {
+				header('HTTP/1.1 500 Internal Server Error');
+			}
 			self::processException(new /*\*/FatalErrorException($message, 0, $severity, $file, $line, $context), TRUE);
 			exit;
 		}
@@ -579,14 +599,17 @@ final class Debug
 	 */
 	public static function processException(/*\*/Exception $exception, $outputAllowed = FALSE)
 	{
-		if (self::$logFile) {
+		if (!self::$enabled) {
+			return;
+
+		} elseif (self::$logFile) {
 			error_log("PHP Fatal error:  Uncaught $exception");
 			$file = @strftime('%d-%b-%Y %H-%M-%S ', Debug::$time) . strstr(number_format(Debug::$time, 4, '~', ''), '~');
 			$file = dirname(self::$logFile) . "/exception $file.html";
 			self::$logHandle = @fopen($file, 'x');
 			if (self::$logHandle) {
-				ob_start(array(__CLASS__, 'writeFile'), 1);
-				self::paintBlueScreen($exception);
+				ob_start(array(__CLASS__, '_writeFile'), 1);
+				self::_paintBlueScreen($exception);
 				ob_end_flush();
 				fclose(self::$logHandle);
 			}
@@ -611,9 +634,10 @@ final class Debug
 		} elseif ($outputAllowed) { // dump to browser
 			if (!headers_sent()) {
 				@ob_end_clean(); while (ob_get_level() && @ob_end_clean());
-				header('Content-Encoding: identity', TRUE); // override gzhandler
+				/*header_remove('Content-Encoding');*/
+				/**/if (in_array('Content-Encoding: gzip', headers_list())) header('Content-Encoding: identity', TRUE);/**/ // override gzhandler
 			}
-			self::paintBlueScreen($exception);
+			self::_paintBlueScreen($exception);
 
 		} elseif (self::$firebugDetected && !headers_sent()) {
 			self::fireLog($exception, self::EXCEPTION);
@@ -633,7 +657,7 @@ final class Debug
 	 * @return void
 	 * @internal
 	 */
-	public static function paintBlueScreen(/*\*/Exception $exception)
+	public static function _paintBlueScreen(/*\*/Exception $exception)
 	{
 		$internals = array();
 		foreach (array(/*Nette\*/'Object', /*Nette\*/'ObjectMixin') as $class) {
@@ -659,7 +683,7 @@ final class Debug
 	 * @return string
 	 * @internal
 	 */
-	public static function writeFile($buffer)
+	public static function _writeFile($buffer)
 	{
 		fwrite(self::$logHandle, $buffer);
 	}
@@ -674,10 +698,9 @@ final class Debug
 	private static function sendEmail($message)
 	{
 		$monitorFile = self::$logFile . '.monitor';
-		if (!is_file($monitorFile)) {
-			if (@file_put_contents($monitorFile, 'e-mail has been sent')) { // intentionally @
-				call_user_func(self::$mailer, $message);
-			}
+		if (@filemtime($monitorFile) + self::$emailSnooze < time()
+			&& @file_put_contents($monitorFile, 'sent')) { // intentionally @
+			call_user_func(self::$mailer, $message);
 		}
 	}
 
@@ -772,7 +795,7 @@ final class Debug
 	 * @param  string  profiler | bluescreen
 	 * @return array
 	 */
-	public static function getDefaultColophons($sender)
+	private static function getDefaultColophons($sender)
 	{
 		if ($sender === 'profiler') {
 			$arr[] = 'Elapsed time: <b>' . number_format((microtime(TRUE) - Debug::$time) * 1000, 1, '.', ' ') . '</b> ms | Allocated memory: <b>' . number_format(memory_get_peak_usage() / 1000, 1, '.', ' ') . '</b> kB';
@@ -934,7 +957,7 @@ final class Debug
 
 
 
-Debug::init();
+Debug::_init();
 
 // hint:
 // if (!function_exists('dump')) { function dump($var, $return = FALSE) { return /*\Nette\*/Debug::dump($var, $return); } }

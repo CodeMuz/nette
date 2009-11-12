@@ -44,15 +44,13 @@ require_once dirname(__FILE__) . '/../Forms/FormContainer.php';
  * @property   string $action
  * @property   string $method
  * @property-read array $groups
+ * @property-read array $httpData
  * @property   string $encoding
  * @property   Nette\ITranslator $translator
- * @property   array $values
  * @property-read array $errors
  * @property-read Nette\Web\Html $elementPrototype
  * @property   IFormRenderer $renderer
  * @property-read boold $submitted
- * @property-read boold $populated
- * @property-read boold $valid
  */
 class Form extends FormContainer
 {
@@ -90,10 +88,10 @@ class Form extends FormContainer
 	const POST = 'post';
 	/**#@-*/
 
-	/** tracker ID */
+	/** @internal tracker ID */
 	const TRACKER_ID = '_form_';
 
-	/** protection token ID */
+	/** @internal protection token ID */
 	const PROTECTOR_ID = '_token_';
 
 	/** @var array of function(Form $sender); Occurs when the form is submitted and successfully validated */
@@ -102,8 +100,11 @@ class Form extends FormContainer
 	/** @var array of function(Form $sender); Occurs when the form is submitted and not validated */
 	public $onInvalidSubmit;
 
-	/** @var mixed */
-	protected $submittedBy;
+	/** @var mixed or NULL meaning: not detected yet */
+	private $submittedBy;
+
+	/** @var array */
+	private $httpData;
 
 	/** @var Html  <form> element */
 	private $element;
@@ -117,12 +118,6 @@ class Form extends FormContainer
 	/** @var array of FormGroup */
 	private $groups = array();
 
-	/** @var bool */
-	private $isPopulated = FALSE;
-
-	/** @var bool */
-	private $valid;
-
 	/** @var array */
 	private $errors = array();
 
@@ -133,17 +128,20 @@ class Form extends FormContainer
 
 	/**
 	 * Form constructor.
+	 * @param  string
 	 */
-	public function __construct($name = NULL, $parent = NULL)
+	public function __construct($name = NULL)
 	{
 		$this->element = /*Nette\Web\*/Html::el('form');
 		$this->element->action = ''; // RFC 1808 -> empty uri means 'this'
-		$this->element->method = 'post';
+		$this->element->method = self::POST;
 		$this->monitor(__CLASS__);
 		if ($name !== NULL) {
-			$this->addTracker($name);
+			$tracker = new HiddenField($name);
+			$tracker->unmonitor(__CLASS__);
+			$this[self::TRACKER_ID] = $tracker;
 		}
-		parent::__construct($parent, $name);
+		parent::__construct(NULL, $name);
 	}
 
 
@@ -177,11 +175,12 @@ class Form extends FormContainer
 	/**
 	 * Sets form's action.
 	 * @param  mixed URI
-	 * @return void
+	 * @return Form  provides a fluent interface
 	 */
 	public function setAction($url)
 	{
 		$this->element->action = $url;
+		return $this;
 	}
 
 
@@ -200,11 +199,15 @@ class Form extends FormContainer
 	/**
 	 * Sets form's method.
 	 * @param  string get | post
-	 * @return void
+	 * @return Form  provides a fluent interface
 	 */
 	public function setMethod($method)
 	{
+		if ($this->httpData !== NULL) {
+			throw new /*\*/InvalidStateException(__METHOD__ . '() must be called until the form is empty.');
+		}
 		$this->element->method = strtolower($method);
+		return $this;
 	}
 
 
@@ -221,13 +224,11 @@ class Form extends FormContainer
 
 
 	/**
-	 * Adds distinguishing mark.
-	 * @param  string
-	 * @return HiddenField
+	 * @deprecated
 	 */
-	public function addTracker($name)
+	public function addTracker()
 	{
-		return $this[self::TRACKER_ID] = new HiddenField($name);
+		throw new /*\*/DeprecatedException(__METHOD__ . '() is deprecated; pass form name to the constructor.');
 	}
 
 
@@ -332,7 +333,7 @@ class Form extends FormContainer
 	/**
 	 * Set the encoding for the values.
 	 * @param  string
-	 * @return void
+	 * @return Form  provides a fluent interface
 	 */
 	public function setEncoding($value)
 	{
@@ -340,6 +341,7 @@ class Form extends FormContainer
 		if ($this->encoding !== 'UTF-8' && !extension_loaded('mbstring')) {
 			throw new /*\*/Exception("The PHP extension 'mbstring' is required for this encoding but is not loaded.");
 		}
+		return $this;
 	}
 
 
@@ -362,11 +364,12 @@ class Form extends FormContainer
 	/**
 	 * Sets translate adapter.
 	 * @param  Nette\ITranslator
-	 * @return void
+	 * @return Form  provides a fluent interface
 	 */
 	public function setTranslator(/*Nette\*/ITranslator $translator = NULL)
 	{
 		$this->translator = $translator;
+		return $this;
 	}
 
 
@@ -387,15 +390,26 @@ class Form extends FormContainer
 
 
 	/**
+	 * Tells if the form is anchored.
+	 * @return bool
+	 */
+	public function isAnchored()
+	{
+		return TRUE;
+	}
+
+
+
+	/**
 	 * Tells if the form was submitted.
 	 * @return ISubmitterControl|FALSE  submittor control
 	 */
-	public function isSubmitted()
+	final public function isSubmitted()
 	{
 		if ($this->submittedBy === NULL) {
-			$this->processHttpRequest();
+			$this->getHttpData();
+			$this->submittedBy = !empty($this->httpData);
 		}
-
 		return $this->submittedBy;
 	}
 
@@ -404,49 +418,29 @@ class Form extends FormContainer
 	/**
 	 * Sets the submittor control.
 	 * @param  ISubmitterControl
-	 * @return void
+	 * @return Form  provides a fluent interface
 	 */
 	public function setSubmittedBy(ISubmitterControl $by = NULL)
 	{
 		$this->submittedBy = $by === NULL ? FALSE : $by;
+		return $this;
 	}
 
 
 
 	/**
-	 * Detects form submission and loads HTTP values.
-	 * @param  Nette\Web\IHttpRequest  optional request object
-	 * @return void
+	 * Returns submitted HTTP data.
+	 * @return array
 	 */
-	public function processHttpRequest($httpRequest = NULL)
+	final public function getHttpData()
 	{
-		$this->submittedBy = FALSE;
-
-		if ($httpRequest === NULL) {
-			$httpRequest = $this->getHttpRequest();
+		if ($this->httpData === NULL) {
+			if (!$this->isAnchored()) {
+				throw new /*\*/InvalidStateException('Form is not anchored and therefore can not determine whether it was submitted.');
+			}
+			$this->httpData = (array) $this->receiveHttpData();
 		}
-		$httpRequest->setEncoding($this->encoding);
-
-		if (strcasecmp($this->getMethod(), 'post') === 0) {
-			if (!$httpRequest->isMethod('post')) return;
-			$data = /*Nette\*/Tools::arrayMergeTree($httpRequest->getPost(), $httpRequest->getFiles());
-
-		} else {
-			if (!$httpRequest->isMethod('get')) return;
-			$data = $httpRequest->getQuery();
-		}
-
-		$tracker = $this->getComponent(self::TRACKER_ID, FALSE);
-		if ($tracker) {
-			if (!isset($data[self::TRACKER_ID]) || $data[self::TRACKER_ID] !== $tracker->getValue()) return;
-
-		} else {
-			if (!count($data)) return;
-		}
-
-		$this->submittedBy = TRUE;
-		$this->loadHttpData($data);
-		$this->submit();
+		return $this->httpData;
 	}
 
 
@@ -455,7 +449,7 @@ class Form extends FormContainer
 	 * Fires submit/click events.
 	 * @return void
 	 */
-	protected function submit()
+	public function fireEvents()
 	{
 		if (!$this->isSubmitted()) {
 			return;
@@ -479,111 +473,46 @@ class Form extends FormContainer
 
 
 
+	/**
+	 * Internal: receives submitted HTTP data.
+	 * @return array
+	 */
+	protected function receiveHttpData()
+	{
+		$httpRequest = $this->getHttpRequest();
+		if (strcasecmp($this->getMethod(), $httpRequest->getMethod())) {
+			return;
+		}
+
+		$httpRequest->setEncoding($this->encoding);
+		if ($httpRequest->isMethod('post')) {
+			$data = /*Nette\*/ArrayTools::mergeTree($httpRequest->getPost(), $httpRequest->getFiles());
+		} else {
+			$data = $httpRequest->getQuery();
+		}
+
+		if ($tracker = $this->getComponent(self::TRACKER_ID, FALSE)) {
+			if (!isset($data[self::TRACKER_ID]) || $data[self::TRACKER_ID] !== $tracker->getValue()) {
+				return;
+			}
+		}
+
+		return $data;
+	}
+
+
+
+	/**
+	 * @deprecated
+	 */
+	public function processHttpRequest()
+	{
+		$this->fireEvents();
+	}
+
+
+
 	/********************* data exchange ****************d*g**/
-
-
-
-	/**
-	 * Fill-in with default values.
-	 * @param  array|Traversable  values used to fill the form
-	 * @param  bool     erase other controls?
-	 * @return void
-	 */
-	public function setDefaults($values, $erase = FALSE)
-	{
-		if (!$this->isSubmitted()) {
-			$this->setValues($values, $erase);
-		}
-	}
-
-
-
-	/**
-	 * Fill-in the form with HTTP data. Doesn't check if form was submitted.
-	 * @param  array    user data
-	 * @return void
-	 */
-	protected function loadHttpData(array $data)
-	{
-		$cursor = & $data;
-		$iterator = $this->getComponents(TRUE);
-		foreach ($iterator as $name => $control) {
-			$sub = $iterator->getSubIterator();
-			if (!isset($sub->cursor)) {
-				$sub->cursor = & $cursor;
-			}
-			if ($control instanceof IFormControl && !$control->isDisabled()) {
-				$control->loadHttpData($sub->cursor);
-				if ($control instanceof ISubmitterControl && (!is_object($this->submittedBy) || $control->isSubmittedBy())) {
-					$this->submittedBy = $control;
-				}
-			}
-			if ($control instanceof INamingContainer) { // going deeper
-				if (isset($sub->cursor[$name]) && is_array($sub->cursor[$name])) {
-					$cursor = & $sub->cursor[$name];
-				} else {
-					unset($cursor);
-					$cursor = NULL;
-				}
-			}
-		}
-		$this->isPopulated = TRUE;
-	}
-
-
-
-	/**
-	 * Was form populated by setDefaults() or processHttpRequest() yet?
-	 * @return bool
-	 */
-	public function isPopulated()
-	{
-		return $this->isPopulated;
-	}
-
-
-
-	/**
-	 * Fill-in with values.
-	 * @param  array|Traversable  values used to fill the form
-	 * @param  bool     erase other controls?
-	 * @return void
-	 */
-	public function setValues($values, $erase = FALSE)
-	{
-		if ($values instanceof /*\*/Traversable) {
-			$values = iterator_to_array($values);
-
-		} elseif (!is_array($values)) {
-			throw new /*\*/InvalidArgumentException("Values must be an array, " . gettype($values) ." given.");
-		}
-
-		$cursor = & $values;
-		$iterator = $this->getComponents(TRUE);
-		foreach ($iterator as $name => $control) {
-			$sub = $iterator->getSubIterator();
-			if (!isset($sub->cursor)) {
-				$sub->cursor = & $cursor;
-			}
-			if ($control instanceof IFormControl) {
-				if ((is_array($sub->cursor) || $sub->cursor instanceof /*\*/ArrayAccess) && array_key_exists($name, $sub->cursor)) {
-					$control->setValue($sub->cursor[$name]);
-
-				} elseif ($erase) {
-					$control->setValue(NULL);
-				}
-			}
-			if ($control instanceof INamingContainer) {
-				if ((is_array($sub->cursor) || $sub->cursor instanceof /*\*/ArrayAccess) && isset($sub->cursor[$name])) {
-					$cursor = & $sub->cursor[$name];
-				} else {
-					unset($cursor);
-					$cursor = NULL;
-				}
-			}
-		}
-		$this->isPopulated = TRUE;
-	}
 
 
 
@@ -593,26 +522,7 @@ class Form extends FormContainer
 	 */
 	public function getValues()
 	{
-		if (!$this->isPopulated) {
-			throw new /*\*/InvalidStateException('Form was not populated yet. Call method isSubmitted() or setDefaults().');
-		}
-
-		$values = array();
-		$cursor = & $values;
-		$iterator = $this->getComponents(TRUE);
-		foreach ($iterator as $name => $control) {
-			$sub = $iterator->getSubIterator();
-			if (!isset($sub->cursor)) {
-				$sub->cursor = & $cursor;
-			}
-			if ($control instanceof IFormControl && !$control->isDisabled() && !($control instanceof ISubmitterControl)) {
-				$sub->cursor[$name] = $control->getValue();
-			}
-			if ($control instanceof INamingContainer) {
-				$cursor = & $sub->cursor[$name];
-				$cursor = array();
-			}
-		}
+		$values = parent::getValues();
 		unset($values[self::TRACKER_ID], $values[self::PROTECTOR_ID]);
 		return $values;
 	}
@@ -620,42 +530,6 @@ class Form extends FormContainer
 
 
 	/********************* validation ****************d*g**/
-
-
-
-	/**
-	 * Is form valid?
-	 * @return bool
-	 */
-	public function isValid()
-	{
-		if ($this->valid === NULL) {
-			$this->validate();
-		}
-		return $this->valid;
-	}
-
-
-
-	/**
-	 * Performs the server side validation.
-	 * @return void
-	 */
-	public function validate()
-	{
-		if (!$this->isPopulated) {
-			throw new /*\*/InvalidStateException('Form was not populated yet. Call method isSubmitted() or setDefaults().');
-		}
-
-		$controls = $this->getControls();
-
-		$this->valid = TRUE;
-		foreach ($controls as $control) {
-			if (!$control->getRules()->validate()) {
-				$this->valid = FALSE;
-			}
-		}
-	}
 
 
 
@@ -724,11 +598,12 @@ class Form extends FormContainer
 	/**
 	 * Sets form renderer.
 	 * @param  IFormRenderer
-	 * @return void
+	 * @return Form  provides a fluent interface
 	 */
 	public function setRenderer(IFormRenderer $renderer)
 	{
 		$this->renderer = $renderer;
+		return $this;
 	}
 
 

@@ -68,7 +68,7 @@ class ComponentContainer extends Component implements IComponentContainer
 			$name = (string) $name;
 
 		} elseif (!is_string($name)) {
-			throw new /*\*/InvalidArgumentException("Component name must be string, " . gettype($name) . " given.");
+			throw new /*\*/InvalidArgumentException("Component name must be integer or string, " . gettype($name) . " given.");
 
 		} elseif (!preg_match('#^[a-zA-Z0-9_]+$#', $name)) {
 			throw new /*\*/InvalidArgumentException("Component name must be non-empty alphanumeric string, '$name' given.");
@@ -82,7 +82,7 @@ class ComponentContainer extends Component implements IComponentContainer
 		$obj = $this;
 		do {
 			if ($obj === $component) {
-				throw new /*\*/InvalidStateException("Circular reference detected.");
+				throw new /*\*/InvalidStateException("Circular reference detected while adding component '$name'.");
 			}
 			$obj = $obj->getParent();
 		} while ($obj !== NULL);
@@ -137,14 +137,22 @@ class ComponentContainer extends Component implements IComponentContainer
 	 */
 	final public function getComponent($name, $need = TRUE)
 	{
-		$a = strpos($name, self::NAME_SEPARATOR);
-		if ($a !== FALSE) {
-			$ext = substr($name, $a + 1);
-			$name = substr($name, 0, $a);
-		}
+		if (is_int($name)) {
+			$name = (string) $name;
 
-		if ($name == NULL) {
-			throw new /*\*/InvalidArgumentException("Component or subcomponent name must be non-empty alphanumeric string, '$name' given.");
+		} elseif (!is_string($name)) {
+			throw new /*\*/InvalidArgumentException("Component name must be integer or string, " . gettype($name) . " given.");
+
+		} else {
+			$a = strpos($name, self::NAME_SEPARATOR);
+			if ($a !== FALSE) {
+				$ext = (string) substr($name, $a + 1);
+				$name = substr($name, 0, $a);
+			}
+
+			if ($name === '') {
+				throw new /*\*/InvalidArgumentException("Component or subcomponent name must not be empty string.");
+			}
 		}
 
 		if (!isset($this->components[$name])) {
@@ -152,25 +160,38 @@ class ComponentContainer extends Component implements IComponentContainer
 		}
 
 		if (isset($this->components[$name])) {
-			return $a === FALSE ? $this->components[$name] : $this->components[$name]->getComponent($ext, $need);
+			if (!isset($ext)) {
+				return $this->components[$name];
+
+			} elseif ($this->components[$name] instanceof IComponentContainer) {
+				return $this->components[$name]->getComponent($ext, $need);
+
+			} elseif ($need) {
+				throw new /*\*/InvalidArgumentException("Component with name '$name' is not container and cannot have '$ext' component.");
+			}
 
 		} elseif ($need) {
 			throw new /*\*/InvalidArgumentException("Component with name '$name' does not exist.");
-
-		} else {
-			return NULL;
 		}
 	}
 
 
 
 	/**
-	 * Component factory. Descendant can override this method to enable lazy component loading.
+	 * Component factory. Delegates the creation of components to a createComponent<Name> method.
 	 * @param  string  component name
 	 * @return void
 	 */
 	protected function createComponent($name)
 	{
+		$ucname = ucfirst($name);
+		$method = 'createComponent' . $ucname;
+		if ($ucname !== $name && method_exists($this, $method) && $this->getReflection()->getMethod($method)->getName() === $method) {
+			$component = $this->$method($name);
+			if ($component instanceof IComponent && $component->getParent() === NULL) {
+				$this->addComponent($component, $name);
+			}
+		}
 	}
 
 
@@ -236,7 +257,7 @@ class ComponentContainer extends Component implements IComponentContainer
 	 * @return NULL|IComponent
 	 * @internal
 	 */
-	public function isCloning()
+	public function _isCloning()
 	{
 		return $this->cloning;
 	}
@@ -255,7 +276,7 @@ class ComponentContainer extends Component implements IComponentContainer
  * @copyright  Copyright (c) 2004, 2009 David Grudl
  * @package    Nette
  */
-class RecursiveComponentIterator extends /*\*/RecursiveArrayIterator
+class RecursiveComponentIterator extends /*\*/RecursiveArrayIterator implements /*\*/Countable
 {
 
 	/**
@@ -276,6 +297,17 @@ class RecursiveComponentIterator extends /*\*/RecursiveArrayIterator
 	public function getChildren()
 	{
 		return $this->current()->getComponents();
+	}
+
+
+
+	/**
+	 * Returns the count of elements.
+	 * @return int
+	 */
+	public function count()
+	{
+		return iterator_count($this);
 	}
 
 }

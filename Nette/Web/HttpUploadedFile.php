@@ -151,7 +151,7 @@ class HttpUploadedFile extends /*Nette\*/Object
 
 
 	/**
-	 * Returns the error code.
+	 * Returns the error code. {@link http://php.net/manual/en/features.file-upload.errors.php}
 	 * @return int
 	 */
 	public function getError()
@@ -175,17 +175,15 @@ class HttpUploadedFile extends /*Nette\*/Object
 	/**
 	 * Move uploaded file to new location.
 	 * @param  string
-	 * @return bool
+	 * @return void
 	 */
 	public function move($dest)
 	{
-		if (move_uploaded_file($this->tmpName, $dest)) {
-			$this->tmpName = $dest;
-			return TRUE;
-
-		} else {
-			return FALSE;
+		if (!move_uploaded_file($this->tmpName, $dest)) {
+			throw new /*\*/InvalidStateException("Unable to move uploaded file '$this->tmpName' to '$dest'.");
 		}
+		$this->tmpName = $dest;
+		return TRUE; // back compatibility
 	}
 
 

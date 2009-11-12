@@ -9,11 +9,13 @@ h1 {
 	color: #165ca3;
 }
 
-#spinner {
+#ajax-spinner {
+	margin: 15px 0 0 15px;
+	padding: 13px;
+	background: white url('../images/spinner.gif') no-repeat 50% 50%;
+	font-size: 0;
+	z-index: 123456;
 	display: none;
-	position: absolute;
-	border: none;
-	z-index: 1000;
 }
 
 div.flash {
@@ -22,4 +24,9 @@ div.flash {
 	border: 1px solid #E2C822;
 	padding: 1em;
 	margin: 1em 0;
+}
+
+a[href^="error:"] {
+	background: red;
+	color: white;
 }

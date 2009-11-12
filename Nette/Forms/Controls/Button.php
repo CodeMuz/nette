@@ -42,7 +42,6 @@ class Button extends FormControl
 	{
 		parent::__construct($caption);
 		$this->control->type = 'button';
-		$this->value = FALSE;
 	}
 
 
@@ -51,7 +50,7 @@ class Button extends FormControl
 	 * Bypasses label generation.
 	 * @return void
 	 */
-	public function getLabel()
+	public function getLabel($caption = NULL)
 	{
 		return NULL;
 	}
@@ -59,25 +58,14 @@ class Button extends FormControl
 
 
 	/**
-	 * Sets 'pressed' indicator.
-	 * @param  bool
-	 * @return void
-	 */
-	public function setValue($value)
-	{
-		$this->value = is_scalar($value) ? (bool) $value : FALSE;
-	}
-
-
-
-	/**
 	 * Generates control's HTML element.
+	 * @param  string
 	 * @return Nette\Web\Html
 	 */
-	public function getControl()
+	public function getControl($caption = NULL)
 	{
 		$control = parent::getControl();
-		$control->value = $this->translate($this->caption);
+		$control->value = $this->translate($caption === NULL ? $this->caption : $caption);
 		return $control;
 	}
 

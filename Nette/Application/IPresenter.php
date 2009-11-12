@@ -32,8 +32,9 @@ interface IPresenter
 {
 
 	/**
-	 * @return void
+	 * @param  PresenterRequest
+	 * @return IPresenterResponse
 	 */
-	function run();
+	function run(PresenterRequest $request);
 
 }

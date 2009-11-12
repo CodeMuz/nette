@@ -12,7 +12,6 @@
 /*use Nette\Environment;*/
 /*use Nette\Application\Route;*/
 /*use Nette\Application\SimpleRouter;*/
-/*use Nette\Loaders\RobotLoader;*/
 
 
 
@@ -20,7 +19,6 @@
 // this allows load Nette Framework classes automatically so that
 // you don't have to litter your code with 'require' statements
 require LIBS_DIR . '/Nette/loader.php';
-//require dirname(__FILE__) . '/../../../Nette/loader.php';
 
 
 
@@ -30,21 +28,6 @@ Debug::enable();
 
 // 2b) load configuration from config.ini file
 Environment::loadConfig();
-
-// 2c) check if directory /app/temp is writable
-if (@file_put_contents(Environment::expand('%tempDir%/_check'), '') === FALSE) {
-	throw new Exception("Make directory '" . Environment::getVariable('tempDir') . "' writable!");
-}
-
-// 2d) enable RobotLoader - this allows load all classes automatically
-$loader = new RobotLoader();
-$loader->addDirectory(APP_DIR);
-$loader->addDirectory(LIBS_DIR);
-$loader->register();
-
-// 2e) setup sessions
-$session = Environment::getSession();
-$session->setSavePath(APP_DIR . '/sessions/');
 
 
 
