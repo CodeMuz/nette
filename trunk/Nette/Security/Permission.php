@@ -544,7 +544,7 @@ class Permission extends /*Nette\*/Object implements IAuthorizator
 	 * @param  string|array|Permission::ALL  privileges
 	 * @param  IPermissionAssertion assertion
 	 * @throws \InvalidStateException
-	 * @return void
+	 * @return Permission  provides a fluent interface
 	 */
 	protected function setRule($toAdd, $type, $roles, $resources, $privileges, IPermissionAssertion $assertion = NULL)
 	{
@@ -638,6 +638,7 @@ class Permission extends /*Nette\*/Object implements IAuthorizator
 				}
 			}
 		}
+		return $this;
 	}
 
 
@@ -978,11 +979,9 @@ class Permission extends /*Nette\*/Object implements IAuthorizator
 	private function & getRules($resource, $role, $create = FALSE)
 	{
 		// follow $resource
-		do {
-			if ($resource === self::ALL) {
-				$visitor = & $this->rules['allResources'];
-				break;
-			}
+		if ($resource === self::ALL) {
+			$visitor = & $this->rules['allResources'];
+		} else {
 			if (!isset($this->rules['byResource'][$resource])) {
 				if (!$create) {
 					$null = NULL;
@@ -991,7 +990,7 @@ class Permission extends /*Nette\*/Object implements IAuthorizator
 				$this->rules['byResource'][$resource] = array();
 			}
 			$visitor = & $this->rules['byResource'][$resource];
-		} while (FALSE);
+		}
 
 
 		// follow $role

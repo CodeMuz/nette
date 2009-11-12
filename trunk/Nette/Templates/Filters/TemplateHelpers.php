@@ -163,7 +163,9 @@ final class TemplateHelpers
 	 */
 	public static function strip($s)
 	{
-		return trim(preg_replace('#\\s+#', ' ', $s));
+		$s = preg_replace_callback('#<(textarea|pre|script).*?</\\1#si', array(__CLASS__, 'indentCb'), $s);
+		$s = trim(preg_replace('#[ \t\r\n]+#', ' ', $s));
+		return strtr($s, "\x1F\x1E\x1D\x1A", " \t\r\n");
 	}
 
 
@@ -180,7 +182,7 @@ final class TemplateHelpers
 		if ($level >= 1) {
 			$s = preg_replace_callback('#<(textarea|pre).*?</\\1#si', array(__CLASS__, 'indentCb'), $s);
 			$s = /*Nette\*/String::indent($s, $level, $chars);
-			$s = strtr($s, "\x1D\x1A", "\r\n");
+			$s = strtr($s, "\x1F\x1E\x1D\x1A", " \t\r\n");
 		}
 		return $s;
 	}
@@ -192,7 +194,7 @@ final class TemplateHelpers
 	 */
 	private static function indentCb($m)
 	{
-		return strtr($m[0], "\r\n", "\x1D\x1A");
+		return strtr($m[0], " \t\r\n", "\x1F\x1E\x1D\x1A");
 	}
 
 
@@ -203,10 +205,18 @@ final class TemplateHelpers
 	 * @param  string
 	 * @return string
 	 */
-	public static function date($value, $format = "%x")
+	public static function date($time, $format = "%x")
 	{
-		$value = is_numeric($value) ? (int) $value : ($value instanceof /*\*/DateTime ? $value->format('U') : strtotime($value));
-		return strpos($format, '%') === FALSE ? date($format, $value) : strftime($format, $value);
+		if ($time == NULL) { // intentionally ==
+			return NULL;
+
+		} elseif (!($time instanceof /*\*/DateTime)) {
+			$time = new /*\*/DateTime(is_numeric($time) ? date('Y-m-d H:i:s', $time) : $time);
+		}
+
+		return strpos($format, '%') === FALSE
+			? $time->format($format) // formats using date()
+			: strftime($format, $time->format('U')); // formats according to locales
 	}
 
 
@@ -222,10 +232,50 @@ final class TemplateHelpers
 		$bytes = round($bytes);
 		$units = array('B', 'kB', 'MB', 'GB', 'TB', 'PB');
 		foreach ($units as $unit) {
-			if (abs($bytes) < 1024) break;
+			if (abs($bytes) < 1024 || $unit === end($units)) break;
 			$bytes = $bytes / 1024;
 		}
 		return round($bytes, $precision) . ' ' . $unit;
+	}
+
+
+
+	/**
+	 * Returns array of string length.
+	 * @param  mixed
+	 * @return int
+	 */
+	public static function length($var)
+	{
+		return is_string($var) ? iconv_strlen($var, 'UTF-8') : count($var);
+	}
+
+
+
+	/**
+	 * Performs a search and replace.
+	 * @param  string
+	 * @param  string
+	 * @param  string
+	 * @return string
+	 */
+	public static function replace($subject, $search, $replacement = '')
+	{
+		return str_replace($search, $replacement, $subject);
+	}
+
+
+
+	/**
+	 * Performs a regular expression search and replace.
+	 * @param  string
+	 * @param  string
+	 * @param  string
+	 * @return string
+	 */
+	public static function replaceRe($subject, $pattern, $replacement = '')
+	{
+		return preg_replace($pattern, $replacement, $subject);
 	}
 
 

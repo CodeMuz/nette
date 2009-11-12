@@ -103,7 +103,7 @@ class HttpRequest extends /*Nette\*/Object implements IHttpRequest
 	/**
 	 * Sets URL object.
 	 * @param  UriScript
-	 * @return void
+	 * @return HttpRequest  provides a fluent interface
 	 */
 	public function setUri(UriScript $uri)
 	{
@@ -111,6 +111,7 @@ class HttpRequest extends /*Nette\*/Object implements IHttpRequest
 		$this->query = NULL;
 		$this->uri->canonicalize();
 		$this->uri->freeze();
+		return $this;
 	}
 
 
@@ -222,25 +223,25 @@ class HttpRequest extends /*Nette\*/Object implements IHttpRequest
 		$uri->canonicalize();
 
 		// detect base URI-path - inspired by Zend Framework (c) Zend Technologies USA Inc. (http://www.zend.com), new BSD license
-		$filename = basename($_SERVER['SCRIPT_FILENAME']);
+		$filename = isset($_SERVER['SCRIPT_FILENAME']) ? basename($_SERVER['SCRIPT_FILENAME']) : NULL;
+		$scriptPath = '';
 
-		if (basename($_SERVER['SCRIPT_NAME']) === $filename) {
+		if (isset($_SERVER['SCRIPT_NAME']) && basename($_SERVER['SCRIPT_NAME']) === $filename) {
 			$scriptPath = rtrim($_SERVER['SCRIPT_NAME'], '/');
 
-		} elseif (basename($_SERVER['PHP_SELF']) === $filename) {
+		} elseif (isset($_SERVER['PHP_SELF']) && basename($_SERVER['PHP_SELF']) === $filename) {
 			$scriptPath = $_SERVER['PHP_SELF'];
 
 		} elseif (isset($_SERVER['ORIG_SCRIPT_NAME']) && basename($_SERVER['ORIG_SCRIPT_NAME']) === $filename) {
 			$scriptPath = $_SERVER['ORIG_SCRIPT_NAME']; // 1and1 shared hosting compatibility
 
-		} else {
+		} elseif (isset($_SERVER['PHP_SELF'], $_SERVER['SCRIPT_FILENAME'])) {
 			// Backtrack up the script_filename to find the portion matching php_self
 			$path = $_SERVER['PHP_SELF'];
 			$segs = explode('/', trim($_SERVER['SCRIPT_FILENAME'], '/'));
 			$segs = array_reverse($segs);
 			$index = 0;
 			$last = count($segs);
-			$scriptPath = '';
 			do {
 				$seg = $segs[$index];
 				$scriptPath = '/' . $seg . $scriptPath;
@@ -354,16 +355,8 @@ class HttpRequest extends /*Nette\*/Object implements IHttpRequest
 		if ($this->files === NULL) {
 			$this->initialize();
 		}
-
-		$var = $this->files;
-		foreach (func_get_args() as $k) {
-			if (is_array($var) && isset($var[$k])) {
-				$var = $var[$k];
-			} else {
-				return NULL;
-			}
-		}
-		return $var;
+		$args = func_get_args();
+		return /*Nette\*/ArrayTools::get($this->files, $args);
 	}
 
 
@@ -427,7 +420,7 @@ class HttpRequest extends /*Nette\*/Object implements IHttpRequest
 	 * Recursively converts and checks encoding.
 	 * @param  array
 	 * @param  string
-	 * @return void
+	 * @return HttpRequest  provides a fluent interface
 	 */
 	public function setEncoding($encoding)
 	{
@@ -435,6 +428,7 @@ class HttpRequest extends /*Nette\*/Object implements IHttpRequest
 			$this->encoding = $encoding;
 			$this->query = $this->post = $this->cookies = $this->files = NULL; // reinitialization required
 		}
+		return $this;
 	}
 
 

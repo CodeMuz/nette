@@ -48,13 +48,30 @@ class Template extends BaseTemplate implements IFileTemplate
 
 
 	/**
+	 * Constructor.
+	 * @param  string  template file path
+	 */
+	public function __construct($file = NULL)
+	{
+		if ($file !== NULL) {
+			$this->setFile($file);
+		}
+	}
+
+
+
+	/**
 	 * Sets the path to the template file.
 	 * @param  string  template file path
-	 * @return void
+	 * @return Template  provides a fluent interface
 	 */
 	public function setFile($file)
 	{
+		if (!is_file($file)) {
+			throw new /*\*/FileNotFoundException("Missing template file '$file'.");
+		}
 		$this->file = $file;
+		return $this;
 	}
 
 
@@ -82,9 +99,6 @@ class Template extends BaseTemplate implements IFileTemplate
 	{
 		if ($this->file == NULL) { // intentionally ==
 			throw new /*\*/InvalidStateException("Template file name was not specified.");
-
-		} elseif (!is_file($this->file) || !is_readable($this->file)) {
-			throw new /*\*/FileNotFoundException("Missing template file '$this->file'.");
 		}
 
 		$this->__set('template', $this);
@@ -105,8 +119,8 @@ class Template extends BaseTemplate implements IFileTemplate
 
 			try {
 				$shortName = $this->file;
-				$shortName = str_replace(/*Nette\*/Environment::getVariable('templatesDir'), "\xE2\x80\xA6", $shortName);
-			} catch (Exception $foo) {
+				$shortName = str_replace(/*Nette\*/Environment::getVariable('appDir'), "\xE2\x80\xA6", $shortName);
+			} catch (/*\*/Exception $foo) {
 			}
 
 			$content = $this->compile(file_get_contents($this->file), "file $shortName");

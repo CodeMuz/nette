@@ -41,7 +41,7 @@ class HiddenField extends FormControl
 
 	public function __construct($forcedValue = NULL)
 	{
-		parent::__construct(NULL);
+		parent::__construct();
 		$this->control->type = 'hidden';
 		$this->value = (string) $forcedValue;
 		$this->forcedValue = $forcedValue;
@@ -53,7 +53,7 @@ class HiddenField extends FormControl
 	 * Bypasses label generation.
 	 * @return void
 	 */
-	public function getLabel()
+	public function getLabel($caption = NULL)
 	{
 		return NULL;
 	}
@@ -63,11 +63,12 @@ class HiddenField extends FormControl
 	/**
 	 * Sets control's value.
 	 * @param  string
-	 * @return void
+	 * @return HiddenField  provides a fluent interface
 	 */
 	public function setValue($value)
 	{
 		$this->value = is_scalar($value) ? (string) $value : '';
+		return $this;
 	}
 
 

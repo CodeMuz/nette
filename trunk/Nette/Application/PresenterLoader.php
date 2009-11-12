@@ -37,8 +37,21 @@ class PresenterLoader implements IPresenterLoader
 	/** @var bool */
 	public $caseSensitive = FALSE;
 
+	/** @var string */
+	private $baseDir;
+
 	/** @var array */
 	private $cache = array();
+
+
+
+	/**
+	 * @param  string
+	 */
+	public function __construct($baseDir)
+	{
+		$this->baseDir = $baseDir;
+	}
 
 
 
@@ -109,7 +122,7 @@ class PresenterLoader implements IPresenterLoader
 	public function formatPresenterClass($presenter)
 	{
 		// PHP 5.3
-		/*return strtr($presenter, ':', '\\') . 'Presenter';*/
+		/*return str_replace(':', 'Module\\', $presenter) . 'Presenter';*/
 		return strtr($presenter, ':', '_') . 'Presenter';
 	}
 
@@ -123,7 +136,7 @@ class PresenterLoader implements IPresenterLoader
 	public function unformatPresenterClass($class)
 	{
 		// PHP 5.3
-		/*return strtr(substr($class, 0, -9), '\\', ':');*/
+		/*return str_replace('Module\\', ':', substr($class, 0, -9));*/
 		return strtr(substr($class, 0, -9), '_', ':');
 	}
 
@@ -136,9 +149,8 @@ class PresenterLoader implements IPresenterLoader
 	 */
 	public function formatPresenterFile($presenter)
 	{
-		$presenter = str_replace(':', 'Module/', $presenter);
-		$presenter = /*Nette\*/Environment::getVariable('presentersDir') . '/' . $presenter . 'Presenter.php';
-		return $presenter;
+		$path = '/' . str_replace(':', 'Module/', $presenter);
+		return $this->baseDir . substr_replace($path, '/presenters', strrpos($path, '/'), 0) . 'Presenter.php';
 	}
 
 }

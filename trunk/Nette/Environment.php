@@ -61,10 +61,14 @@ final class Environment
 		'cacheBase' => array('%tempDir%', TRUE), // deprecated
 		'tempDir' => array('%appDir%/temp', TRUE),
 		'logDir' => array('%appDir%/log', TRUE),
-		'templatesDir' => array('%appDir%/templates', TRUE),
-		'presentersDir' => array('%appDir%/presenters', TRUE),
-		'componentsDir' => array('%appDir%/components', TRUE),
-		'modelsDir' => array('%appDir%/models', TRUE),
+	);
+
+	/** @var array */
+	private static $aliases = array(
+		'getHttpRequest' => 'Nette\Web\IHttpRequest',
+		'getHttpResponse' => 'Nette\Web\IHttpResponse',
+		'getApplication' => 'Nette\Application\Application',
+		'getUser' => 'Nette\Web\IUser',
 	);
 
 
@@ -198,12 +202,11 @@ final class Environment
 
 
 	/**
-	 * Determines whether the debugger is active.
-	 * @return bool
+	 * @deprecated
 	 */
 	public static function isDebugging()
 	{
-		return self::getMode('debug');
+		throw new /*\*/DeprecatedException;
 	}
 
 
@@ -351,32 +354,62 @@ final class Environment
 	/**
 	 * Gets the service object of the specified type.
 	 * @param  string service name
-	 * @param  bool   throw exception if service doesn't exist?
-	 * @return mixed
+	 * @param  array  options in case service is not singleton
+	 * @return object
 	 */
-	public static function getService($name, $need = TRUE)
+	public static function getService($name, array $options = NULL)
 	{
-		return self::getServiceLocator()->getService($name, $need);
+		return self::getServiceLocator()->getService($name, $options);
 	}
 
 
 
 	/**
-	 * @return Nette\Web\IHttpRequest
+	 * Adds new Environment::get<Service>() method.
+	 * @param  string  service name
+	 * @param  string  alias name
+	 * @return void
+	 */
+	public static function setServiceAlias($service, $alias)
+	{
+		self::$aliases['get' . ucfirst($alias)] = $service;
+	}
+
+
+
+	/**
+	 * Calling to undefined static method.
+	 * @param  string  method name
+	 * @param  array   arguments
+	 * @return object  service
+	 */
+	public static function __callStatic($name, $args)
+	{
+		if (isset(self::$aliases[$name])) {
+			return self::getServiceLocator()->getService(self::$aliases[$name], $args);
+		} else {
+			throw new /*\*/MemberAccessException("Call to undefined static method Nette\\Environment::$name().");
+		}
+	}
+
+
+
+	/**
+	 * @return Nette\Web\HttpRequest
 	 */
 	public static function getHttpRequest()
 	{
-		return self::getServiceLocator()->getService('Nette\Web\IHttpRequest');
+		return self::getServiceLocator()->getService(self::$aliases[__FUNCTION__]);
 	}
 
 
 
 	/**
-	 * @return Nette\Web\IHttpResponse
+	 * @return Nette\Web\HttpResponse
 	 */
 	public static function getHttpResponse()
 	{
-		return self::getServiceLocator()->getService('Nette\Web\IHttpResponse');
+		return self::getServiceLocator()->getService(self::$aliases[__FUNCTION__]);
 	}
 
 
@@ -386,17 +419,17 @@ final class Environment
 	 */
 	public static function getApplication()
 	{
-		return self::getServiceLocator()->getService('Nette\Application\Application');
+		return self::getServiceLocator()->getService(self::$aliases[__FUNCTION__]);
 	}
 
 
 
 	/**
-	 * @return Nette\Web\IUser
+	 * @return Nette\Web\User
 	 */
 	public static function getUser()
 	{
-		return self::getServiceLocator()->getService('Nette\Web\IUser');
+		return self::getServiceLocator()->getService(self::$aliases[__FUNCTION__]);
 	}
 
 
@@ -422,12 +455,12 @@ final class Environment
 	/**
 	 * Returns instance of session or session namespace.
 	 * @param  string
-	 * @return Nette\Web\Session|Nette\Web\Session
+	 * @return Nette\Web\Session
 	 */
 	public static function getSession($namespace = NULL)
 	{
 		$handler = self::getService('Nette\Web\Session');
-		return func_num_args() === 0 ? $handler : $handler->getNamespace($namespace);
+		return $namespace === NULL ? $handler : $handler->getNamespace($namespace);
 	}
 
 

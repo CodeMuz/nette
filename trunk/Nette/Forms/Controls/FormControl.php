@@ -95,6 +95,7 @@ abstract class FormControl extends /*Nette\*/Component implements IFormControl
 	 */
 	public function __construct($caption = NULL)
 	{
+		$this->monitor('Nette\Forms\Form');
 		parent::__construct();
 		$this->control = /*Nette\Web\*/Html::el('input');
 		$this->label = /*Nette\Web\*/Html::el('label');
@@ -105,17 +106,32 @@ abstract class FormControl extends /*Nette\*/Component implements IFormControl
 
 
 	/**
+	 * This method will be called when the component becomes attached to Form.
+	 * @param  IComponent
+	 * @return void
+	 */
+	protected function attached($form)
+	{
+		if (!$this->disabled && $form instanceof Form && $form->isAnchored() && $form->isSubmitted()) {
+			$this->htmlName = NULL;
+			$this->loadHttpData();
+		}
+	}
+
+
+
+	/**
 	 * Overloaded parent setter. This method checks for invalid control name.
 	 * @param  IComponentContainer
 	 * @param  string
-	 * @return void
+	 * @return FormControl  provides a fluent interface
 	 */
 	public function setParent(/*Nette\*/IComponentContainer $parent = NULL, $name = NULL)
 	{
 		if ($name === 'submit') {
 			throw new /*\*/InvalidArgumentException("Name 'submit' is not allowed due to JavaScript limitations.");
 		}
-		parent::setParent($parent, $name);
+		return parent::setParent($parent, $name);
 	}
 
 
@@ -157,11 +173,12 @@ abstract class FormControl extends /*Nette\*/Component implements IFormControl
 	/**
 	 * Changes control's HTML id.
 	 * @param  string new ID, or FALSE or NULL
-	 * @return void
+	 * @return FormControl  provides a fluent interface
 	 */
 	public function setHtmlId($id)
 	{
 		$this->htmlId = $id;
+		return $this;
 	}
 
 
@@ -240,11 +257,12 @@ abstract class FormControl extends /*Nette\*/Component implements IFormControl
 	/**
 	 * Sets translate adapter.
 	 * @param  Nette\ITranslator
-	 * @return void
+	 * @return FormControl  provides a fluent interface
 	 */
 	public function setTranslator(/*Nette\*/ITranslator $translator = NULL)
 	{
 		$this->translator = $translator;
+		return $this;
 	}
 
 
@@ -283,11 +301,12 @@ abstract class FormControl extends /*Nette\*/Component implements IFormControl
 	/**
 	 * Sets control's value.
 	 * @param  mixed
-	 * @return void
+	 * @return FormControl  provides a fluent interface
 	 */
 	public function setValue($value)
 	{
 		$this->value = $value;
+		return $this;
 	}
 
 
@@ -304,14 +323,29 @@ abstract class FormControl extends /*Nette\*/Component implements IFormControl
 
 
 	/**
+	 * Sets control's default value.
+	 * @param  mixed
+	 * @return FormControl  provides a fluent interface
+	 */
+	public function setDefaultValue($value)
+	{
+		$form = $this->getForm(FALSE);
+		if (!$form || !$form->isAnchored() || !$form->isSubmitted()) {
+			$this->setValue($value);
+		}
+		return $this;
+	}
+
+
+
+	/**
 	 * Loads HTTP data.
-	 * @param  array
 	 * @return void
 	 */
-	public function loadHttpData($data)
+	public function loadHttpData()
 	{
-		$name = $this->getName();
-		$this->setValue(isset($data[$name]) ? $data[$name] : NULL);
+		$path = explode('[', strtr(str_replace(']', '', $this->getHtmlName()), '.', '_'));
+		$this->setValue(/*Nette\*/ArrayTools::get($this->getForm()->getHttpData(), $path));
 	}
 
 
@@ -362,14 +396,19 @@ abstract class FormControl extends /*Nette\*/Component implements IFormControl
 
 	/**
 	 * Generates label's HTML element.
+	 * @param  string
 	 * @return Nette\Web\Html
 	 */
-	public function getLabel()
+	public function getLabel($caption = NULL)
 	{
 		$label = clone $this->label;
 		$label->for = $this->getHtmlId();
-		if ($this->caption instanceof /*Nette\Web\*/Html) {
+		if ($caption !== NULL) {
+			$label->setText($this->translate($caption));
+
+		} elseif ($this->caption instanceof /*Nette\Web\*/Html) {
 			$label->add($this->caption);
+
 		} else {
 			$label->setText($this->translate($this->caption));
 		}

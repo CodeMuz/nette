@@ -38,15 +38,17 @@ require_once dirname(__FILE__) . '/../Object.php';
  */
 class MailMimePart extends /*Nette\*/Object
 {
-	/**#@+ Encoding */
+	/**#@+ encoding */
 	const ENCODING_BASE64 = 'base64';
 	const ENCODING_7BIT = '7bit';
 	const ENCODING_8BIT = '8bit';
 	const ENCODING_QUOTED_PRINTABLE = 'quoted-printable';
 	/**#@-*/
 
+	/**#@+ @internal */
 	const EOL = "\r\n";
 	const LINE_LENGTH = 76;
+	/**#@-*/
 
 	/** @var array */
 	private $headers = array();
@@ -151,7 +153,7 @@ class MailMimePart extends /*Nette\*/Object
 					$email = " <$email>";
 				}
 				if ($len + strlen($email) + 1 > self::LINE_LENGTH) {
-					$s .= self::EOL . ' ';
+					$s .= self::EOL . "\t";
 					$len = 1;
 				}
 				$s .= "$email,";
@@ -340,7 +342,7 @@ class MailMimePart extends /*Nette\*/Object
 			if ($l = strspn($s, $range, $pos)) {
 				while ($len + $l > self::LINE_LENGTH - 2) { // 2 = length of suffix ?=
 					$lx = self::LINE_LENGTH - $len - 2;
-					$o .= substr($s, $pos, $lx) . '?=' . self::EOL . ' ' . $prefix;
+					$o .= substr($s, $pos, $lx) . '?=' . self::EOL . "\t" . $prefix;
 					$pos += $lx;
 					$l -= $lx;
 					$len = strlen($prefix) + 1;
@@ -353,7 +355,7 @@ class MailMimePart extends /*Nette\*/Object
 				$len += 3;
 				// \xC0 tests UTF-8 character boudnary; 9 is reserved space for 4bytes UTF-8 character
 				if (($s[$pos] & "\xC0") !== "\x80" && $len > self::LINE_LENGTH - 2 - 9) {
-					$o .= '?=' . self::EOL . ' ' . $prefix;
+					$o .= '?=' . self::EOL . "\t" . $prefix;
 					$len = strlen($prefix) + 1 + 3;
 				}
 				$o .= '=' . strtoupper(bin2hex($s[$pos]));
