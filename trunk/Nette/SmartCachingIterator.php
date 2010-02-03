@@ -3,14 +3,7 @@
 /**
  * Nette Framework
  *
- * Copyright (c) 2004, 2009 David Grudl (http://davidgrudl.com)
- *
- * This source file is subject to the "Nette license" that is bundled
- * with this package in the file license.txt.
- *
- * For more information please see http://nettephp.com
- *
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @license    http://nettephp.com/license  Nette license
  * @link       http://nettephp.com
  * @category   Nette
@@ -24,8 +17,7 @@
 /**
  * Smarter caching interator.
  *
- * @author     David Grudl
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @package    Nette
  *
  * @property-read bool $first
@@ -53,7 +45,7 @@ class SmartCachingIterator extends /*\*/CachingIterator implements /*\*/Countabl
 			parent::__construct($iterator, 0);
 
 		} else {
-			throw new /*\*/InvalidArgumentException("Argument passed to " . __METHOD__ . " must be an array or interface Iterator provider, " . (is_object($iterator) ? get_class($iterator) : gettype($iterator)) ." given.");
+			throw new /*\*/InvalidArgumentException("Invalid argument passed to foreach resp. " . __CLASS__ . "; array or Iterator expected, " . (is_object($iterator) ? get_class($iterator) : gettype($iterator)) ." given.");
 		}
 	}
 
@@ -61,22 +53,24 @@ class SmartCachingIterator extends /*\*/CachingIterator implements /*\*/Countabl
 
 	/**
 	 * Is the current element the first one?
+	 * @param  int  grid width
 	 * @return bool
 	 */
-	public function isFirst()
+	public function isFirst($width = NULL)
 	{
-		return $this->counter === 1;
+		return $width === NULL ? $this->counter === 1 : ($this->counter % $width) === 1;
 	}
 
 
 
 	/**
 	 * Is the current element the last one?
+	 * @param  int  grid width
 	 * @return bool
 	 */
-	public function isLast()
+	public function isLast($width = NULL)
 	{
-		return !$this->hasNext();
+		return !$this->hasNext() || ($width !== NULL && ($this->counter % $width) === 0);
 	}
 
 

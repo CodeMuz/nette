@@ -3,14 +3,7 @@
 /**
  * Nette Framework
  *
- * Copyright (c) 2004, 2009 David Grudl (http://davidgrudl.com)
- *
- * This source file is subject to the "Nette license" that is bundled
- * with this package in the file license.txt.
- *
- * For more information please see http://nettephp.com
- *
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @license    http://nettephp.com/license  Nette license
  * @link       http://nettephp.com
  * @category   Nette
@@ -21,17 +14,10 @@
 
 
 
-require_once dirname(__FILE__) . '/../Object.php';
-
-require_once dirname(__FILE__) . '/../Caching/ICacheStorage.php';
-
-
-
 /**
  * Cache file storage.
  *
- * @author     David Grudl
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @package    Nette\Caching
  */
 class FileStorage extends /*Nette\*/Object implements ICacheStorage
@@ -41,10 +27,10 @@ class FileStorage extends /*Nette\*/Object implements ICacheStorage
 	 *
 	 * 1) reading: open(r+b), lock(SH), read
 	 *     - delete?: delete*, close
-	 * 2) deleting: open(r+b), delete*, close
+	 * 2) deleting: delete*
 	 * 3) writing: open(r+b || wb), lock(EX), truncate*, write data, write meta, close
 	 *
-	 * delete* = lock(EX), try unlink, if fails (on NTFS) { truncate, close, unlink } else close (on ext3)
+	 * delete* = try unlink, if fails (on NTFS) { lock(EX), truncate, close, unlink } else close (on ext3)
 	 */
 
 	/**#@+ @internal cache file structure */
@@ -52,11 +38,9 @@ class FileStorage extends /*Nette\*/Object implements ICacheStorage
 	// meta structure: array of
 	const META_TIME = 'time'; // timestamp
 	const META_SERIALIZED = 'serialized'; // is content serialized?
-	const META_PRIORITY = 'priority'; // priority
 	const META_EXPIRE = 'expire'; // expiration timestamp
 	const META_DELTA = 'delta'; // relative (sliding) expiration
 	const META_ITEMS = 'di'; // array of dependent items (file => timestamp)
-	const META_TAGS = 'tags'; // array of tags (tag => [foo])
 	const META_CALLBACKS = 'callbacks'; // array of callbacks (function, args)
 	/**#@-*/
 
@@ -78,6 +62,9 @@ class FileStorage extends /*Nette\*/Object implements ICacheStorage
 	/** @var bool */
 	private $useDirs;
 
+	/** @var resource */
+	private $db;
+
 
 
 	public function __construct($dir)
@@ -86,7 +73,7 @@ class FileStorage extends /*Nette\*/Object implements ICacheStorage
 			self::$useDirectories = !ini_get('safe_mode');
 
 			// checks whether directory is writable
-			$uniq = uniqid();
+			$uniq = uniqid('_', TRUE);
 			umask(0000);
 			if (!@mkdir("$dir/$uniq", 0777)) { // intentionally @
 				throw new /*\*/InvalidStateException("Unable to write to directory '$dir'. Make this directory writable.");
@@ -160,7 +147,7 @@ class FileStorage extends /*Nette\*/Object implements ICacheStorage
 			return TRUE;
 		} while (FALSE);
 
-		$this->delete($meta[self::HANDLE], $meta[self::FILE]); // meta[handle] & meta[file] was added by readMeta()
+		$this->delete($meta[self::FILE], $meta[self::HANDLE]); // meta[handle] & meta[file] was added by readMeta()
 		return FALSE;
 	}
 
@@ -171,7 +158,7 @@ class FileStorage extends /*Nette\*/Object implements ICacheStorage
 	 * @param  string key
 	 * @param  mixed  data
 	 * @param  array  dependencies
-	 * @return bool  TRUE if no problem
+	 * @return void
 	 */
 	public function write($key, $data, array $dp)
 	{
@@ -184,20 +171,12 @@ class FileStorage extends /*Nette\*/Object implements ICacheStorage
 			$meta[self::META_SERIALIZED] = TRUE;
 		}
 
-		if (isset($dp[Cache::PRIORITY])) {
-			$meta[self::META_PRIORITY] = (int) $dp[Cache::PRIORITY];
-		}
-
 		if (!empty($dp[Cache::EXPIRE])) {
 			if (empty($dp[Cache::SLIDING])) {
 				$meta[self::META_EXPIRE] = $dp[Cache::EXPIRE] + time(); // absolute time
 			} else {
 				$meta[self::META_DELTA] = (int) $dp[Cache::EXPIRE]; // sliding time
 			}
-		}
-
-		if (!empty($dp[Cache::TAGS])) {
-			$meta[self::META_TAGS] = array_flip(array_values((array) $dp[Cache::TAGS]));
 		}
 
 		if (!empty($dp[Cache::ITEMS])) {
@@ -217,14 +196,31 @@ class FileStorage extends /*Nette\*/Object implements ICacheStorage
 		if ($this->useDirs && !is_dir($dir = dirname($cacheFile))) {
 			umask(0000);
 			if (!mkdir($dir, 0777, TRUE)) {
-				return FALSE;
+				return;
 			}
 		}
 		$handle = @fopen($cacheFile, 'r+b'); // intentionally @
 		if (!$handle) {
 			$handle = fopen($cacheFile, 'wb'); // intentionally @
 			if (!$handle) {
-				return FALSE;
+				return;
+			}
+		}
+
+		if (!empty($dp[Cache::TAGS]) || isset($dp[Cache::PRIORITY])) {
+			$db = $this->getDb();
+			$dbFile = sqlite_escape_string($cacheFile);
+			$query = '';
+			if (!empty($dp[Cache::TAGS])) {
+				foreach ((array) $dp[Cache::TAGS] as $tag) {
+					$query .= "INSERT INTO cache (file, tag) VALUES ('$dbFile', '" . sqlite_escape_string($tag) . "');";
+				}
+			}
+			if (isset($dp[Cache::PRIORITY])) {
+				$query .= "INSERT INTO cache (file, priority) VALUES ('$dbFile', '" . (int) $dp[Cache::PRIORITY] . "');";
+			}
+			if (!sqlite_exec($db, "BEGIN; DELETE FROM cache WHERE file = '$dbFile'; $query COMMIT;")) {
+				return;
 			}
 		}
 
@@ -236,18 +232,25 @@ class FileStorage extends /*Nette\*/Object implements ICacheStorage
 		$headLen = strlen($head);
 		$dataLen = strlen($data);
 
-		if (fwrite($handle, str_repeat("\x00", $headLen), $headLen) === $headLen) {
-			if (fwrite($handle, $data, $dataLen) === $dataLen) {
-				fseek($handle, 0);
-				if (fwrite($handle, $head, $headLen) === $headLen) {
-					fclose($handle);
-					return TRUE;
-				}
+		do {
+			if (fwrite($handle, str_repeat("\x00", $headLen), $headLen) !== $headLen) {
+				break;
 			}
-		}
 
-		$this->delete($handle, $cacheFile);
-		return TRUE;
+			if (fwrite($handle, $data, $dataLen) !== $dataLen) {
+				break;
+			}
+
+			fseek($handle, 0);
+			if (fwrite($handle, $head, $headLen) !== $headLen) {
+				break;
+			}
+
+			fclose($handle);
+			return TRUE;
+		} while (FALSE);
+
+		$this->delete($cacheFile, $handle);
 	}
 
 
@@ -255,16 +258,11 @@ class FileStorage extends /*Nette\*/Object implements ICacheStorage
 	/**
 	 * Removes item from the cache.
 	 * @param  string key
-	 * @return bool  TRUE if no problem
+	 * @return void
 	 */
 	public function remove($key)
 	{
-		$cacheFile = $this->getCacheFile($key);
-		$meta = $this->readMeta($cacheFile, LOCK_EX);
-		if ($meta) {
-			$this->delete($meta[self::HANDLE], $cacheFile);
-		}
-		return TRUE;
+		$this->delete($this->getCacheFile($key));
 	}
 
 
@@ -272,53 +270,71 @@ class FileStorage extends /*Nette\*/Object implements ICacheStorage
 	/**
 	 * Removes items from the cache by conditions & garbage collector.
 	 * @param  array  conditions
-	 * @return bool  TRUE if no problem
+	 * @return void
 	 */
 	public function clean(array $conds)
 	{
-		$tags = isset($conds[Cache::TAGS]) ? array_flip((array) $conds[Cache::TAGS]) : array();
-
-		$priority = isset($conds[Cache::PRIORITY]) ? $conds[Cache::PRIORITY] : -1;
-
 		$all = !empty($conds[Cache::ALL]);
+		$collector = empty($conds);
 
-		$now = time();
+		// cleaning using file iterator
+		if ($all || $collector) {
+			$now = time();
+			$base = $this->dir . DIRECTORY_SEPARATOR . 'c';
+			$iterator = new /*\*/RecursiveIteratorIterator(new /*\*/RecursiveDirectoryIterator($this->dir), /*\*/RecursiveIteratorIterator::CHILD_FIRST);
+			foreach ($iterator as $entry) {
+				$path = (string) $entry;
+				if (strncmp($path, $base, strlen($base))) { // skip files out of cache
+					continue;
+				}
+				if ($entry->isDir()) { // collector: remove empty dirs
+					@rmdir($path); // intentionally @
+					continue;
+				}
+				if ($all) {
+					$this->delete($path);
 
-		$base = $this->dir . DIRECTORY_SEPARATOR . 'c';
-		$iterator = new /*\*/RecursiveIteratorIterator(new /*\*/RecursiveDirectoryIterator($this->dir), /*\*/RecursiveIteratorIterator::CHILD_FIRST);
-		foreach ($iterator as $entry) {
-			if (strncmp($entry, $base, strlen($base))) {
-				continue;
+				} else { // collector
+					$meta = $this->readMeta($path, LOCK_SH);
+					if (!$meta) continue;
+
+					if (!empty($meta[self::META_EXPIRE]) && $meta[self::META_EXPIRE] < $now) {
+						$this->delete($path, $meta[self::HANDLE]);
+						continue;
+					}
+
+					fclose($meta[self::HANDLE]);
+				}
 			}
-			if ($entry->isDir()) {
-				@rmdir((string) $entry); // intentionally @
-				continue;
+
+			if ($all && extension_loaded('sqlite')) {
+				sqlite_exec("DELETE FROM cache", $this->getDb());
 			}
-			do {
-				$meta = $this->readMeta((string) $entry, LOCK_SH);
-				if (!$meta) continue 2;
-
-				if ($all) break;
-				if (!empty($meta[self::META_EXPIRE]) && $meta[self::META_EXPIRE] < $now) {
-					break;
-				}
-
-				if (!empty($meta[self::META_PRIORITY]) && $meta[self::META_PRIORITY] <= $priority) {
-					break;
-				}
-
-				if (!empty($meta[self::META_TAGS]) && array_intersect_key($tags, $meta[self::META_TAGS])) {
-					break;
-				}
-
-				fclose($meta[self::HANDLE]);
-				continue 2;
-			} while (FALSE);
-
-			$this->delete($meta[self::HANDLE], (string) $entry);
+			return;
 		}
 
-		return TRUE;
+		// cleaning using journal
+		if (!empty($conds[Cache::TAGS])) {
+			$db = $this->getDb();
+			foreach ((array) $conds[Cache::TAGS] as $tag) {
+				$tmp[] = "'" . sqlite_escape_string($tag) . "'";
+			}
+			$query[] = "tag IN (" . implode(',', $tmp) . ")";
+		}
+
+		if (isset($conds[Cache::PRIORITY])) {
+			$query[] = "priority <= " . (int) $conds[Cache::PRIORITY];
+		}
+
+		if (isset($query)) {
+			$db = $this->getDb();
+			$query = implode(' OR ', $query);
+			$files = sqlite_single_query("SELECT file FROM cache WHERE $query", $db, FALSE);
+			foreach ($files as $file) {
+				$this->delete($file);
+			}
+			sqlite_exec("DELETE FROM cache WHERE $query", $db);
+		}
 	}
 
 
@@ -393,20 +409,45 @@ class FileStorage extends /*Nette\*/Object implements ICacheStorage
 
 	/**
 	 * Deletes and closes file.
-	 * @param  resource
 	 * @param  string
+	 * @param  resource
 	 * @return void
 	 */
-	private static function delete($handle, $file)
+	private static function delete($file, $handle = NULL)
 	{
 		if (@unlink($file)) { // intentionally @
-			fclose($handle);
-		} else {
+			if ($handle) fclose($handle);
+			return;
+		}
+
+		if (!$handle) {
+			$handle = @fopen($file, 'r+'); // intentionally @
+		}
+		if ($handle) {
 			flock($handle, LOCK_EX);
 			ftruncate($handle, 0);
 			fclose($handle);
 			@unlink($file); // intentionally @; not atomic
 		}
+	}
+
+
+
+	/**
+	 * Returns SQLite resource.
+	 * @return resource
+	 */
+	protected function getDb()
+	{
+		if ($this->db === NULL) {
+			if (!extension_loaded('sqlite')) {
+				throw new /*\*/InvalidStateException("SQLite extension is required for storing tags and priorities.");
+			}
+			$this->db = sqlite_open($this->dir . '/cachejournal.sdb');
+			@sqlite_exec($this->db, 'CREATE TABLE cache (file VARCHAR NOT NULL, priority, tag VARCHAR);
+			CREATE INDEX IDX_FILE ON cache (file); CREATE INDEX IDX_PRI ON cache (priority); CREATE INDEX IDX_TAG ON cache (tag);'); // intentionally @
+		}
+		return $this->db;
 	}
 
 }

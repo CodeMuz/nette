@@ -3,14 +3,7 @@
 /**
  * Nette Framework
  *
- * Copyright (c) 2004, 2009 David Grudl (http://davidgrudl.com)
- *
- * This source file is subject to the "Nette license" that is bundled
- * with this package in the file license.txt.
- *
- * For more information please see http://nettephp.com
- *
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @license    http://nettephp.com/license  Nette license
  * @link       http://nettephp.com
  * @category   Nette
@@ -21,15 +14,10 @@
 
 
 
-require_once dirname(__FILE__) . '/../Object.php';
-
-
-
 /**
  * Session namespace for Session.
  *
- * @author     David Grudl
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @package    Nette\Web
  */
 final class SessionNamespace extends /*Nette\*/Object implements /*\*/IteratorAggregate, /*\*/ArrayAccess
@@ -81,6 +69,9 @@ final class SessionNamespace extends /*Nette\*/Object implements /*\*/IteratorAg
 	public function __set($name, $value)
 	{
 		$this->data[$name] = $value;
+		if (is_object($value)) {
+			$this->meta[$name]['V'] = /*Nette\Reflection\*/ClassReflection::from($value)->getAnnotation('serializationVersion');
+		}
 	}
 
 
@@ -123,7 +114,7 @@ final class SessionNamespace extends /*Nette\*/Object implements /*\*/IteratorAg
 	 */
 	public function __unset($name)
 	{
-		unset($this->data[$name], $this->meta['EXP'][$name]);
+		unset($this->data[$name], $this->meta[$name]);
 	}
 
 
@@ -183,36 +174,33 @@ final class SessionNamespace extends /*Nette\*/Object implements /*\*/IteratorAg
 
 	/**
 	 * Sets the expiration of the namespace or specific variables.
-	 * @param  mixed   time in seconds, value 0 means "until the browser is closed"
+	 * @param  string|int|DateTime  time, value 0 means "until the browser is closed"
 	 * @param  mixed   optional list of variables / single variable to expire
 	 * @return SessionNamespace  provides a fluent interface
 	 */
-	public function setExpiration($seconds, $variables = NULL)
+	public function setExpiration($time, $variables = NULL)
 	{
-		if (is_string($seconds) && !is_numeric($seconds)) {
-			$seconds = strtotime($seconds);
+		if (empty($time)) {
+			$time = NULL;
+			$whenBrowserIsClosed = TRUE;
+		} else {
+			$time = /*Nette\*/Tools::createDateTime($time)->format('U');
+			$whenBrowserIsClosed = FALSE;
 		}
 
-		$whenBrowserIsClosed = $seconds == 0;
-		if ($seconds <= 0) {
-			$seconds = 0;
+		if ($variables === NULL) { // to entire namespace
+			$this->meta['']['T'] = $time;
+			$this->meta['']['B'] = $whenBrowserIsClosed;
 
-		} elseif ($seconds <= /*Nette\*/Tools::YEAR) {
-			$seconds += time();
-		}
-
-		if ($variables === NULL) {
-			// to entire namespace
-			$this->meta['EXP'][''] = array($seconds, $whenBrowserIsClosed);
-
-		} elseif (is_array($variables)) {
-			// to variables
+		} elseif (is_array($variables)) { // to variables
 			foreach ($variables as $variable) {
-				$this->meta['EXP'][$variable] = array($seconds, $whenBrowserIsClosed);
+				$this->meta[$variable]['T'] = $time;
+				$this->meta[$variable]['B'] = $whenBrowserIsClosed;
 			}
 
-		} else {
-			$this->meta['EXP'][$variables] = array($seconds, $whenBrowserIsClosed);
+		} else { // to variable
+			$this->meta[$variables]['T'] = $time;
+			$this->meta[$variables]['B'] = $whenBrowserIsClosed;
 		}
 		return $this;
 	}
@@ -228,15 +216,15 @@ final class SessionNamespace extends /*Nette\*/Object implements /*\*/IteratorAg
 	{
 		if ($variables === NULL) {
 			// from entire namespace
-			unset($this->meta['EXP']['']);
+			unset($this->meta['']['T'], $this->meta['']['B']);
 
 		} elseif (is_array($variables)) {
 			// from variables
 			foreach ($variables as $variable) {
-				unset($this->meta['EXP'][$variable]);
+				unset($this->meta[$variable]['T'], $this->meta[$variable]['B']);
 			}
 		} else {
-			unset($this->meta['EXP'][$variables]);
+			unset($this->meta[$variables]['T'], $this->meta[$variable]['B']);
 		}
 	}
 

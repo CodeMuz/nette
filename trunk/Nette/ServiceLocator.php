@@ -3,14 +3,7 @@
 /**
  * Nette Framework
  *
- * Copyright (c) 2004, 2009 David Grudl (http://davidgrudl.com)
- *
- * This source file is subject to the "Nette license" that is bundled
- * with this package in the file license.txt.
- *
- * For more information please see http://nettephp.com
- *
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @license    http://nettephp.com/license  Nette license
  * @link       http://nettephp.com
  * @category   Nette
@@ -21,17 +14,10 @@
 
 
 
-require_once dirname(__FILE__) . '/IServiceLocator.php';
-
-require_once dirname(__FILE__) . '/Object.php';
-
-
-
 /**
  * Service locator pattern implementation.
  *
- * @author     David Grudl
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @package    Nette
  */
 class ServiceLocator extends Object implements IServiceLocator
@@ -139,7 +125,7 @@ class ServiceLocator extends Object implements IServiceLocator
 			}
 
 			if (is_string($factory) && strpos($factory, ':') === FALSE) { // class name
-				/**/fixNamespace($factory);/**/
+				/**/Framework::fixNamespace($factory);/**/
 				if (!class_exists($factory)) {
 					throw new AmbiguousServiceException("Cannot instantiate service '$name', class '$factory' not found.");
 				}
@@ -149,15 +135,13 @@ class ServiceLocator extends Object implements IServiceLocator
 				}
 
 			} else { // factory callback
-				/**/fixCallback($factory);/**/
-				if (!is_callable($factory)) {
-					$able = is_callable($factory, TRUE, $textual);
-					throw new AmbiguousServiceException("Cannot instantiate service '$name', handler '$textual' is not " . ($able ? 'callable.' : 'valid PHP callback.'));
+				$factory = callback($factory);
+				if (!$factory->isCallable()) {
+					throw new /*\*/InvalidStateException("Cannot instantiate service '$name', handler '$factory' is not callable.");
 				}
-				$service = call_user_func($factory, $options);
+				$service = $factory/**/->invoke/**/($options);
 				if (!is_object($service)) {
-					$able = is_callable($factory, TRUE, $textual);
-					throw new AmbiguousServiceException("Cannot instantiate service '$name', value returned by '$textual' is not object.");
+					throw new AmbiguousServiceException("Cannot instantiate service '$name', value returned by '$factory' is not object.");
 				}
 			}
 
@@ -212,8 +196,7 @@ class ServiceLocator extends Object implements IServiceLocator
 /**
  * Ambiguous service resolution exception.
  *
- * @author     David Grudl
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @package    Nette
  */
 class AmbiguousServiceException extends /*\*/Exception

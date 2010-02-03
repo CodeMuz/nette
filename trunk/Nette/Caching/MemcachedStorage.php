@@ -3,14 +3,7 @@
 /**
  * Nette Framework
  *
- * Copyright (c) 2004, 2009 David Grudl (http://davidgrudl.com)
- *
- * This source file is subject to the "Nette license" that is bundled
- * with this package in the file license.txt.
- *
- * For more information please see http://nettephp.com
- *
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @license    http://nettephp.com/license  Nette license
  * @link       http://nettephp.com
  * @category   Nette
@@ -21,17 +14,10 @@
 
 
 
-require_once dirname(__FILE__) . '/../Object.php';
-
-require_once dirname(__FILE__) . '/../Caching/ICacheStorage.php';
-
-
-
 /**
  * Memcached storage.
  *
- * @author     David Grudl
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @package    Nette\Caching
  */
 class MemcachedStorage extends /*Nette\*/Object implements ICacheStorage
@@ -112,7 +98,7 @@ class MemcachedStorage extends /*Nette\*/Object implements ICacheStorage
 	 * @param  string key
 	 * @param  mixed  data
 	 * @param  array  dependencies
-	 * @return bool  TRUE if no problem
+	 * @return void
 	 */
 	public function write($key, $data, array $dp)
 	{
@@ -136,7 +122,7 @@ class MemcachedStorage extends /*Nette\*/Object implements ICacheStorage
 			$meta[self::META_CALLBACKS] = $dp[Cache::CALLBACKS];
 		}
 
-		return $this->memcache->set($this->prefix . $key, $meta, 0, $expire);
+		$this->memcache->set($this->prefix . $key, $meta, 0, $expire);
 	}
 
 
@@ -144,11 +130,11 @@ class MemcachedStorage extends /*Nette\*/Object implements ICacheStorage
 	/**
 	 * Removes item from the cache.
 	 * @param  string key
-	 * @return bool  TRUE if no problem
+	 * @return void
 	 */
 	public function remove($key)
 	{
-		return $this->memcache->delete($this->prefix . $key);
+		$this->memcache->delete($this->prefix . $key);
 	}
 
 
@@ -156,7 +142,7 @@ class MemcachedStorage extends /*Nette\*/Object implements ICacheStorage
 	/**
 	 * Removes items from the cache by conditions & garbage collector.
 	 * @param  array  conditions
-	 * @return bool  TRUE if no problem
+	 * @return void
 	 */
 	public function clean(array $conds)
 	{
@@ -166,8 +152,6 @@ class MemcachedStorage extends /*Nette\*/Object implements ICacheStorage
 		} elseif (isset($conds[Cache::TAGS]) || isset($conds[Cache::PRIORITY])) {
 			throw new /*\*/NotSupportedException('Tags and priority is not supported by MemcachedStorage.');
 		}
-
-		return TRUE;
 	}
 
 }

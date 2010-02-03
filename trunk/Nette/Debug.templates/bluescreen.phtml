@@ -3,15 +3,7 @@
 /**
  * Nette Framework - Debugger bluescreen template.
  *
- * Copyright (c) 2004, 2009 David Grudl (http://davidgrudl.com)
- *
- * This source file is subject to the "Nette license" that is bundled
- * with this package in the file license.txt.
- *
- * For more information please see http://nettephp.com
- *
- * @author     David Grudl
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @license    http://nettephp.com/license  Nette license
  * @link       http://nettephp.com
  * @category   Nette
@@ -90,12 +82,12 @@ function _netteDebugPrintCode($file, $line, $count = 15)
 
 /**
  * Dumps variable.
- * @param  mixed
+ * @param  string
  * @return string
  */
-function _netteDump($var)
+function _netteDump($dump)
 {
-	return preg_replace_callback('#(<pre class="dump">|\s+)?(.*)\((\d+)\) <code>#', /*Nette\*/'_netteDumpCb', Debug::dump($var, TRUE));
+	return '<pre class="dump">' . preg_replace_callback('#(^|\s+)?(.*)\((\d+)\) <code>#', /*Nette\*/'_netteDumpCb', $dump) . '</pre>';
 }
 
 function _netteDumpCb($m)
@@ -363,7 +355,7 @@ if (headers_sent()) {
 		<?php do { ?>
 
 			<?php if ($level++): ?>
-				<?php _netteOpenPanel('Caused by', TRUE) ?>
+				<?php _netteOpenPanel('Caused by', $level > 2) ?>
 				<div class="panel">
 					<h1><?php echo htmlspecialchars(get_class($ex)), ($ex->getCode() ? ' #' . $ex->getCode() : '') ?></h1>
 
@@ -412,7 +404,7 @@ if (headers_sent()) {
 						}
 						foreach ($row['args'] as $k => $v) {
 							echo '<tr><th>', (isset($params[$k]) ? '$' . $params[$k]->name : "#$k"), '</th><td>';
-							echo _netteDump($v);
+							echo _netteDump(self::_dump($v, 0));
 							echo "</td></tr>\n";
 						}
 						?>
@@ -451,7 +443,7 @@ if (headers_sent()) {
 			<table>
 			<?php
 			foreach ($ex->context as $k => $v) {
-				echo '<tr><th>$', htmlspecialchars($k), '</th><td>', _netteDump($v), "</td></tr>\n";
+				echo '<tr><th>$', htmlspecialchars($k), '</th><td>', _netteDump(self::_dump($v, 0)), "</td></tr>\n";
 			}
 			?>
 			</table>
@@ -466,10 +458,10 @@ if (headers_sent()) {
 		<?php if (!empty($application)):?>
 		<?php _netteOpenPanel('Nette Application', TRUE) ?>
 			<h3>Requests</h3>
-			<?php echo _netteDump($application->getRequests()) ?>
+			<?php $tmp = $application->getRequests(); echo _netteDump(self::_dump($tmp, 0)) ?>
 
 			<h3>Presenter</h3>
-			<?php echo _netteDump($application->getPresenter()) ?>
+			<?php $tmp = $application->getPresenter(); echo _netteDump(self::_dump($tmp, 0)) ?>
 		<?php _netteClosePanel() ?>
 		<?php endif ?>
 
@@ -484,7 +476,7 @@ if (headers_sent()) {
 			<?php
 			foreach ($list['user'] as $k => $v) {
 				echo '<tr'.($rn++%2?' class="odd"':'').'><th>', htmlspecialchars($k), '</th>';
-				echo '<td>', _netteDump($v), "</td></tr>\n";
+				echo '<td>', _netteDump(self::_dump($v, 0)), "</td></tr>\n";
 			}
 			?>
 			</table>
@@ -507,7 +499,7 @@ if (headers_sent()) {
 			<?php else: ?>
 			<table>
 			<?php
-			foreach ($_SERVER as $k => $v) echo '<tr'.($rn++%2?' class="odd"':'').'><th>', htmlspecialchars($k), '</th><td>', _netteDump($v), "</td></tr>\n";
+			foreach ($_SERVER as $k => $v) echo '<tr'.($rn++%2?' class="odd"':'').'><th>', htmlspecialchars($k), '</th><td>', _netteDump(self::_dump($v, 0)), "</td></tr>\n";
 			?>
 			</table>
 			<?php endif ?>
@@ -533,7 +525,7 @@ if (headers_sent()) {
 			<?php else: ?>
 			<table>
 			<?php
-			foreach ($GLOBALS[$name] as $k => $v) echo '<tr'.($rn++%2?' class="odd"':'').'><th>', htmlspecialchars($k), '</th><td>', _netteDump($v), "</td></tr>\n";
+			foreach ($GLOBALS[$name] as $k => $v) echo '<tr'.($rn++%2?' class="odd"':'').'><th>', htmlspecialchars($k), '</th><td>', _netteDump(self::_dump($v, 0)), "</td></tr>\n";
 			?>
 			</table>
 			<?php endif ?>

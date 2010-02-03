@@ -3,7 +3,7 @@
 /**
  * My Application
  *
- * @copyright  Copyright (c) 2009 John Doe
+ * @copyright  Copyright (c) 2010 John Doe
  * @package    MyApplication
  */
 
@@ -27,7 +27,7 @@ class ErrorPresenter extends BasePresenter
 	public function renderDefault($exception)
 	{
 		if ($this->isAjax()) { // AJAX request? Just note this error in payload.
-			$this->getPayload()->error = TRUE;
+			$this->payload->error = TRUE;
 			$this->terminate();
 
 		} elseif ($exception instanceof BadRequestException) {

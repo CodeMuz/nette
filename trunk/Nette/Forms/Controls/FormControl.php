@@ -3,14 +3,7 @@
 /**
  * Nette Framework
  *
- * Copyright (c) 2004, 2009 David Grudl (http://davidgrudl.com)
- *
- * This source file is subject to the "Nette license" that is bundled
- * with this package in the file license.txt.
- *
- * For more information please see http://nettephp.com
- *
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @license    http://nettephp.com/license  Nette license
  * @link       http://nettephp.com
  * @category   Nette
@@ -21,17 +14,10 @@
 
 
 
-require_once dirname(__FILE__) . '/../../Component.php';
-
-require_once dirname(__FILE__) . '/../../Forms/IFormControl.php';
-
-
-
 /**
  * Base class that implements the basic functionality common to form controls.
  *
- * @author     David Grudl
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @package    Nette\Forms
  *
  * @property-read Form $form
@@ -121,22 +107,6 @@ abstract class FormControl extends /*Nette\*/Component implements IFormControl
 
 
 	/**
-	 * Overloaded parent setter. This method checks for invalid control name.
-	 * @param  IComponentContainer
-	 * @param  string
-	 * @return FormControl  provides a fluent interface
-	 */
-	public function setParent(/*Nette\*/IComponentContainer $parent = NULL, $name = NULL)
-	{
-		if ($name === 'submit') {
-			throw new /*\*/InvalidArgumentException("Name 'submit' is not allowed due to JavaScript limitations.");
-		}
-		return parent::setParent($parent, $name);
-	}
-
-
-
-	/**
 	 * Returns form.
 	 * @param  bool   throw exception if form doesn't exist?
 	 * @return Form
@@ -163,7 +133,11 @@ abstract class FormControl extends /*Nette\*/Component implements IFormControl
 				$name = $obj->getName();
 				$obj = $obj->lookup('Nette\Forms\INamingContainer', TRUE);
 			}
-			$this->htmlName = "$name$s";
+			$name .= $s;
+			if ($name === 'submit') {
+				throw new /*\*/InvalidArgumentException("Form control name 'submit' is not allowed due to JavaScript limitations.");
+			}
+			$this->htmlName = $name;
 		}
 		return $this->htmlName;
 	}
@@ -194,7 +168,7 @@ abstract class FormControl extends /*Nette\*/Component implements IFormControl
 
 		} elseif ($this->htmlId === NULL) {
 			$this->htmlId = sprintf(self::$idMask, $this->getForm()->getName(), $this->getHtmlName());
-			$this->htmlId = str_replace(array('[', ']'), array('-', ''), $this->htmlId);
+			$this->htmlId = str_replace(array('[]', '[', ']'), array('', '-', ''), $this->htmlId);
 		}
 		return $this->htmlId;
 	}
@@ -284,12 +258,13 @@ abstract class FormControl extends /*Nette\*/Component implements IFormControl
 	/**
 	 * Returns translated string.
 	 * @param  string
+	 * @param  int      plural count
 	 * @return string
 	 */
-	public function translate($s)
+	public function translate($s, $count = NULL)
 	{
 		$translator = $this->getTranslator();
-		return $translator === NULL ? $s : $translator->translate($s);
+		return $translator === NULL ? $s : $translator->translate($s, $count);
 	}
 
 
@@ -344,7 +319,7 @@ abstract class FormControl extends /*Nette\*/Component implements IFormControl
 	 */
 	public function loadHttpData()
 	{
-		$path = explode('[', strtr(str_replace(']', '', $this->getHtmlName()), '.', '_'));
+		$path = explode('[', strtr(str_replace(array('[]', ']'), '', $this->getHtmlName()), '.', '_'));
 		$this->setValue(/*Nette\*/ArrayTools::get($this->getForm()->getHttpData(), $path));
 	}
 
@@ -573,13 +548,12 @@ abstract class FormControl extends /*Nette\*/Component implements IFormControl
 	 */
 	public static function validateEqual(IFormControl $control, $arg)
 	{
-		$value = (string) $control->getValue();
-		foreach ((is_array($arg) ? $arg : array($arg)) as $item) {
-			if ($item instanceof IFormControl) {
-				if ($value === (string) $item->value) return TRUE;
-
-			} else {
-				if ($value === (string) $item) return TRUE;
+		$value = $control->getValue();
+		foreach ((is_array($value) ? $value : array($value)) as $val) {
+			foreach ((is_array($arg) ? $arg : array($arg)) as $item) {
+				if ((string) $val === (string) ($item instanceof IFormControl ? $item->value : $item)) {
+					return TRUE;
+				}
 			}
 		}
 		return FALSE;

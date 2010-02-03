@@ -3,14 +3,7 @@
 /**
  * Nette Framework
  *
- * Copyright (c) 2004, 2009 David Grudl (http://davidgrudl.com)
- *
- * This source file is subject to the "Nette license" that is bundled
- * with this package in the file license.txt.
- *
- * For more information please see http://nettephp.com
- *
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @license    http://nettephp.com/license  Nette license
  * @link       http://nettephp.com
  * @category   Nette
@@ -41,7 +34,7 @@ ErrorException is corrupted in PHP < 5.3
 /**
  * The exception that is thrown when the value of an argument is
  * outside the allowable range of values as defined by the invoked method.
- * @package    Nette
+ * @package    exceptions
  */
 class ArgumentOutOfRangeException extends InvalidArgumentException
 {
@@ -52,12 +45,12 @@ class ArgumentOutOfRangeException extends InvalidArgumentException
 /**
  * The exception that is thrown when a method call is invalid for the object's
  * current state, method has been invoked at an illegal or inappropriate time.
- * @package    Nette
+ * @package    exceptions
  */
 class InvalidStateException extends RuntimeException
 {
 	/**/
-	function __construct($message = '', $code = 0, Exception $previous = NULL)
+	public function __construct($message = '', $code = 0, Exception $previous = NULL)
 	{
 		if (version_compare(PHP_VERSION , '5.3', '<')) {
 			$this->previous = $previous;
@@ -73,7 +66,7 @@ class InvalidStateException extends RuntimeException
 
 /**
  * The exception that is thrown when a requested method or operation is not implemented.
- * @package    Nette
+ * @package    exceptions
  */
 class NotImplementedException extends LogicException
 {
@@ -84,7 +77,7 @@ class NotImplementedException extends LogicException
 /**
  * The exception that is thrown when an invoked method is not supported. For scenarios where
  * it is sometimes possible to perform the requested operation, see InvalidStateException.
- * @package    Nette
+ * @package    exceptions
  */
 class NotSupportedException extends LogicException
 {
@@ -94,7 +87,7 @@ class NotSupportedException extends LogicException
 
 /**
  * The exception that is thrown when a requested method or operation is deprecated.
- * @package    Nette
+ * @package    exceptions
  */
 class DeprecatedException extends NotSupportedException
 {
@@ -104,7 +97,7 @@ class DeprecatedException extends NotSupportedException
 
 /**
  * The exception that is thrown when accessing a class member (property or method) fails.
- * @package    Nette
+ * @package    exceptions
  */
 class MemberAccessException extends LogicException
 {
@@ -114,7 +107,7 @@ class MemberAccessException extends LogicException
 
 /**
  * The exception that is thrown when an I/O error occurs.
- * @package    Nette
+ * @package    exceptions
  */
 class IOException extends RuntimeException
 {
@@ -124,7 +117,7 @@ class IOException extends RuntimeException
 
 /**
  * The exception that is thrown when accessing a file that does not exist on disk.
- * @package    Nette
+ * @package    exceptions
  */
 class FileNotFoundException extends IOException
 {
@@ -134,7 +127,7 @@ class FileNotFoundException extends IOException
 
 /**
  * The exception that is thrown when part of a file or directory cannot be found.
- * @package    Nette
+ * @package    exceptions
  */
 class DirectoryNotFoundException extends IOException
 {
@@ -145,7 +138,7 @@ class DirectoryNotFoundException extends IOException
 /**
  * The exception that indicates errors that can not be recovered from. Execution of
  * the script should be halted.
- * @package    Nette
+ * @package    exceptions
  */
 class FatalErrorException extends /*Error*/Exception
 {

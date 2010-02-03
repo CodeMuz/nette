@@ -3,14 +3,7 @@
 /**
  * Nette Framework
  *
- * Copyright (c) 2004, 2009 David Grudl (http://davidgrudl.com)
- *
- * This source file is subject to the "Nette license" that is bundled
- * with this package in the file license.txt.
- *
- * For more information please see http://nettephp.com
- *
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @license    http://nettephp.com/license  Nette license
  * @link       http://nettephp.com
  * @category   Nette
@@ -21,17 +14,10 @@
 
 
 
-require_once dirname(__FILE__) . '/../ComponentContainer.php';
-
-require_once dirname(__FILE__) . '/../Forms/INamingContainer.php';
-
-
-
 /**
  * Container for form controls.
  *
- * @author     David Grudl
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @package    Nette\Forms
  *
  * @property-read \ArrayIterator $controls
@@ -41,6 +27,9 @@ require_once dirname(__FILE__) . '/../Forms/INamingContainer.php';
  */
 class FormContainer extends /*Nette\*/ComponentContainer implements /*\*/ArrayAccess, INamingContainer
 {
+	/** @var array of function(Form $sender); Occurs when the form is validated */
+	public $onValidate;
+
 	/** @var FormGroup */
 	protected $currentGroup;
 
@@ -166,6 +155,7 @@ class FormContainer extends /*Nette\*/ComponentContainer implements /*\*/ArrayAc
 	public function validate()
 	{
 		$this->valid = TRUE;
+		$this->onValidate($this);
 		foreach ($this->getControls() as $control) {
 			if (!$control->getRules()->validate()) {
 				$this->valid = FALSE;
@@ -416,18 +406,6 @@ class FormContainer extends /*Nette\*/ComponentContainer implements /*\*/ArrayAc
 		$control = new FormContainer;
 		$control->currentGroup = $this->currentGroup;
 		return $this[$name] = $control;
-	}
-
-
-
-	/**
-	 * Adds control that repeats a specified prototype for each item in the list.
-	 * @param  string  control name
-	 * @return RepeaterControl
-	 */
-	public function addRepeater($name)
-	{
-		return $this[$name] = new RepeaterControl;
 	}
 
 

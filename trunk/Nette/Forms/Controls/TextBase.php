@@ -3,14 +3,7 @@
 /**
  * Nette Framework
  *
- * Copyright (c) 2004, 2009 David Grudl (http://davidgrudl.com)
- *
- * This source file is subject to the "Nette license" that is bundled
- * with this package in the file license.txt.
- *
- * For more information please see http://nettephp.com
- *
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @license    http://nettephp.com/license  Nette license
  * @link       http://nettephp.com
  * @category   Nette
@@ -21,15 +14,10 @@
 
 
 
-require_once dirname(__FILE__) . '/../../Forms/Controls/FormControl.php';
-
-
-
 /**
  * Implements the basic functionality common to text input controls.
  *
- * @author     David Grudl
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @package    Nette\Forms
  *
  * @property   string $emptyValue
@@ -65,7 +53,7 @@ abstract class TextBase extends FormControl
 	{
 		$value = $this->value;
 		foreach ($this->filters as $filter) {
-			$value = (string) call_user_func($filter, $value);
+			$value = (string) $filter/**/->invoke/**/($value);
 		}
 		return $value === $this->translate($this->emptyValue) ? '' : $value;
 	}
@@ -103,12 +91,7 @@ abstract class TextBase extends FormControl
 	 */
 	public function addFilter($filter)
 	{
-		/**/fixCallback($filter);/**/
-		if (!is_callable($filter)) {
-			$able = is_callable($filter, TRUE, $textual);
-			throw new /*\*/InvalidArgumentException("Filter '$textual' is not " . ($able ? 'callable.' : 'valid PHP callback.'));
-		}
-		$this->filters[] = $filter;
+		$this->filters[] = callback($filter);
 		return $this;
 	}
 

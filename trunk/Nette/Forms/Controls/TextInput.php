@@ -3,14 +3,7 @@
 /**
  * Nette Framework
  *
- * Copyright (c) 2004, 2009 David Grudl (http://davidgrudl.com)
- *
- * This source file is subject to the "Nette license" that is bundled
- * with this package in the file license.txt.
- *
- * For more information please see http://nettephp.com
- *
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @license    http://nettephp.com/license  Nette license
  * @link       http://nettephp.com
  * @category   Nette
@@ -21,15 +14,10 @@
 
 
 
-require_once dirname(__FILE__) . '/../../Forms/Controls/TextBase.php';
-
-
-
 /**
  * Single line text input control.
  *
- * @author     David Grudl
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @package    Nette\Forms
  */
 class TextInput extends TextBase
@@ -47,8 +35,8 @@ class TextInput extends TextBase
 		$this->control->type = 'text';
 		$this->control->size = $cols;
 		$this->control->maxlength = $maxLength;
-		$this->filters[] = array(/*Nette\*/'String', 'trim');
-		$this->filters[] = array($this, 'checkMaxLength');
+		$this->filters[] = callback(/*Nette\*/'String', 'trim');
+		$this->filters[] = callback($this, 'checkMaxLength');
 		$this->value = '';
 	}
 
@@ -58,7 +46,7 @@ class TextInput extends TextBase
 	 * Filter: shortens value to control's max length.
 	 * @return string
 	 */
-	protected function checkMaxLength($value)
+	public function checkMaxLength($value)
 	{
 		if ($this->control->maxlength && iconv_strlen($value, 'UTF-8') > $this->control->maxlength) {
 			$value = iconv_substr($value, 0, $this->control->maxlength, 'UTF-8');

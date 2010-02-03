@@ -5,20 +5,12 @@
 /*use Nette\Forms\Form;*/
 /*use Nette\Security\AuthenticationException;*/
 
-require_once dirname(__FILE__) . '/BasePresenter.php';
 
 
 class AuthPresenter extends BasePresenter
 {
 	/** @persistent */
 	public $backlink = '';
-
-
-
-	public static function getPersistentParams()
-	{
-		return array('backlink');
-	}
 
 
 
@@ -43,15 +35,15 @@ class AuthPresenter extends BasePresenter
 
 		$form->addProtection('Please submit this form again (security token has expired).');
 
-		/**/$form->onSubmit[] = array($this, 'loginFormSubmitted');/**/
+		/**/$form->onSubmit[] = callback($this, 'loginFormSubmitted');/**/
 		/* PHP 5.3
-		$that = $this;
-		$form->onSubmit[] = function($form) use ($that) {
+		$presenter = $this;
+		$form->onSubmit[] = function($form) use ($presenter) {
 			try {
 				$user = Environment::getUser();
 				$user->authenticate($form['username']->getValue(), $form['password']->getValue());
-				$that->getApplication()->restoreRequest($that->backlink);
-				$that->redirect('Dashboard:');
+				$presenter->getApplication()->restoreRequest($presenter->backlink);
+				$presenter->redirect('Dashboard:');
 
 			} catch (AuthenticationException $e) {
 				$form->addError($e->getMessage());

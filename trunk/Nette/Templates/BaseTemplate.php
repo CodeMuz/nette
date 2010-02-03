@@ -3,14 +3,7 @@
 /**
  * Nette Framework
  *
- * Copyright (c) 2004, 2009 David Grudl (http://davidgrudl.com)
- *
- * This source file is subject to the "Nette license" that is bundled
- * with this package in the file license.txt.
- *
- * For more information please see http://nettephp.com
- *
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @license    http://nettephp.com/license  Nette license
  * @link       http://nettephp.com
  * @category   Nette
@@ -21,17 +14,10 @@
 
 
 
-require_once dirname(__FILE__) . '/../Object.php';
-
-require_once dirname(__FILE__) . '/../Templates/ITemplate.php';
-
-
-
 /**
  * Template.
  *
- * @author     David Grudl
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @package    Nette\Templates
  */
 abstract class BaseTemplate extends /*Nette\*/Object implements ITemplate
@@ -63,14 +49,9 @@ abstract class BaseTemplate extends /*Nette\*/Object implements ITemplate
 	 */
 	public function registerFilter($callback)
 	{
-		/**/fixCallback($callback);/**/
-		if (!is_callable($callback)) {
-			$able = is_callable($callback, TRUE, $textual);
-			throw new /*\*/InvalidArgumentException("Filter '$textual' is not " . ($able ? 'callable.' : 'valid PHP callback.'));
-		}
+		$callback = callback($callback);
 		if (in_array($callback, $this->filters)) {
-			is_callable($callback, TRUE, $textual);
-			throw new /*\*/InvalidStateException("Filter '$textual' was registered twice.");
+			throw new /*\*/InvalidStateException("Filter '$callback' was registered twice.");
 		}
 		$this->filters[] = $callback;
 	}
@@ -120,8 +101,7 @@ abstract class BaseTemplate extends /*Nette\*/Object implements ITemplate
 			if (func_num_args() && func_get_arg(0)) {
 				throw $e;
 			} else {
-				trigger_error($e->getMessage(), E_USER_WARNING);
-				return '';
+				/*Nette\*/Debug::toStringException($e);
 			}
 		}
 	}
@@ -143,12 +123,11 @@ abstract class BaseTemplate extends /*Nette\*/Object implements ITemplate
 		try {
 			foreach ($this->filters as $filter) {
 				$content = self::extractPhp($content, $blocks);
-				$content = call_user_func($filter, $content);
+				$content = $filter/**/->invoke/**/($content);
 				$content = strtr($content, $blocks); // put PHP code back
 			}
 		} catch (/*\*/Exception $e) {
-			is_callable($filter, TRUE, $textual);
-			throw new /*\*/InvalidStateException("Filter $textual: " . $e->getMessage() . ($label ? " (in $label)" : ''), 0, $e);
+			throw new /*\*/InvalidStateException("Filter $filter: " . $e->getMessage() . ($label ? " (in $label)" : ''), 0, $e);
 		}
 
 		if ($label) {
@@ -172,12 +151,7 @@ abstract class BaseTemplate extends /*Nette\*/Object implements ITemplate
 	 */
 	public function registerHelper($name, $callback)
 	{
-		/**/fixCallback($callback);/**/
-		if (!is_callable($callback)) {
-			$able = is_callable($callback, TRUE, $textual);
-			throw new /*\*/InvalidArgumentException("Helper handler '$textual' is not " . ($able ? 'callable.' : 'valid PHP callback.'));
-		}
-		$this->helpers[strtolower($name)] = $callback;
+		$this->helpers[strtolower($name)] = callback($callback);
 	}
 
 
@@ -189,12 +163,7 @@ abstract class BaseTemplate extends /*Nette\*/Object implements ITemplate
 	 */
 	public function registerHelperLoader($callback)
 	{
-		/**/fixCallback($callback);/**/
-		if (!is_callable($callback)) {
-			$able = is_callable($callback, TRUE, $textual);
-			throw new /*\*/InvalidArgumentException("Helper loader '$textual' is not " . ($able ? 'callable.' : 'valid PHP callback.'));
-		}
-		$this->helperLoaders[] = $callback;
+		$this->helperLoaders[] = callback($callback);
 	}
 
 
@@ -221,16 +190,16 @@ abstract class BaseTemplate extends /*Nette\*/Object implements ITemplate
 		$lname = strtolower($name);
 		if (!isset($this->helpers[$lname])) {
 			foreach ($this->helperLoaders as $loader) {
-				$helper = call_user_func($loader, $lname);
+				$helper = $loader/**/->invoke/**/($lname);
 				if ($helper) {
 					$this->registerHelper($lname, $helper);
-					return call_user_func_array($helper, $args);
+					return $this->helpers[$lname]->invokeArgs($args);
 				}
 			}
 			return parent::__call($name, $args);
 		}
 
-		return call_user_func_array($this->helpers[$lname], $args);
+		return $this->helpers[$lname]->invokeArgs($args);
 	}
 
 
@@ -360,18 +329,23 @@ abstract class BaseTemplate extends /*Nette\*/Object implements ITemplate
 	{
 		$res = '';
 		$blocks = array();
-		foreach (token_get_all($source) as $token) {
+		$tokens = token_get_all($source);
+		foreach ($tokens as $n => $token) {
 			if (is_array($token)) {
 				if ($token[0] === T_INLINE_HTML) {
 					$res .= $token[1];
-					unset($php);
-				} else {
-					if (!isset($php)) {
-						$res .= $php = "\x01@php:p" . count($blocks) . "@\x02";
-						$php = & $blocks[$php];
-					}
-					$php .= $token[1];
+					continue;
+
+				} elseif ($token[0] === T_OPEN_TAG && $token[1] === '<?' && isset($tokens[$n+1][1]) && $tokens[$n+1][1] === 'xml') {
+					$php = & $res;
+					$token[1] = '<<?php ?>?';
+
+				} elseif ($token[0] === T_OPEN_TAG || $token[0] === T_OPEN_TAG_WITH_ECHO) {
+					$res .= $id = "\x01@php:p" . count($blocks) . "@\x02";
+					$php = & $blocks[$id];
 				}
+				$php .= $token[1];
+
 			} else {
 				$php .= $token;
 			}

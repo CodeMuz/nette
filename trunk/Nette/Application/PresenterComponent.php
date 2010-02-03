@@ -3,14 +3,7 @@
 /**
  * Nette Framework
  *
- * Copyright (c) 2004, 2009 David Grudl (http://davidgrudl.com)
- *
- * This source file is subject to the "Nette license" that is bundled
- * with this package in the file license.txt.
- *
- * For more information please see http://nettephp.com
- *
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @license    http://nettephp.com/license  Nette license
  * @link       http://nettephp.com
  * @category   Nette
@@ -21,14 +14,6 @@
 
 
 
-require_once dirname(__FILE__) . '/../ComponentContainer.php';
-
-require_once dirname(__FILE__) . '/../Application/ISignalReceiver.php';
-
-require_once dirname(__FILE__) . '/../Application/IStatePersistent.php';
-
-
-
 /**
  * PresenterComponent is the base class for all presenters components.
  *
@@ -36,8 +21,7 @@ require_once dirname(__FILE__) . '/../Application/IStatePersistent.php';
  * other child components, and interact with user. Components have properties
  * for storing their status, and responds to user command.
  *
- * @author     David Grudl
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @package    Nette\Application
  *
  * @property-read Presenter $presenter
@@ -106,13 +90,26 @@ abstract class PresenterComponent extends /*Nette\*/ComponentContainer implement
 	 */
 	protected function tryCall($method, array $params)
 	{
-		$class = $this->getClass();
-		if (PresenterHelpers::isMethodCallable($class, $method)) {
-			$args = PresenterHelpers::paramsToArgs($class, $method, $params);
-			call_user_func_array(array($this, $method), $args);
-			return TRUE;
+		$rc = $this->getReflection();
+		if ($rc->hasMethod($method)) {
+			$rm = $rc->getMethod($method);
+			if ($rm->isPublic() && !$rm->isAbstract() && !$rm->isStatic()) {
+				$rm->invokeNamedArgs($this, $params);
+				return TRUE;
+			}
 		}
 		return FALSE;
+	}
+
+
+
+	/**
+	 * Access to reflection.
+	 * @return PresenterComponentReflection
+	 */
+	public /*static */function getReflection()
+	{
+		return new PresenterComponentReflection(/**/$this/**//*get_called_class()*/);
 	}
 
 
@@ -128,11 +125,15 @@ abstract class PresenterComponent extends /*Nette\*/ComponentContainer implement
 	 */
 	public function loadState(array $params)
 	{
-		foreach (PresenterHelpers::getPersistentParams($this->getClass()) as $nm => $meta)
+		foreach ($this->getReflection()->getPersistentParams() as $nm => $meta)
 		{
 			if (isset($params[$nm])) { // ignore NULL values
 				if (isset($meta['def'])) {
-					settype($params[$nm], gettype($meta['def']));
+					if (is_array($params[$nm]) && !is_array($meta['def'])) {
+						$params[$nm] = $meta['def']; // prevents array to scalar conversion
+					} else {
+						settype($params[$nm], gettype($meta['def']));
+					}
 				}
 				$this->$nm = & $params[$nm];
 			}
@@ -145,12 +146,13 @@ abstract class PresenterComponent extends /*Nette\*/ComponentContainer implement
 	/**
 	 * Saves state informations for next request.
 	 * @param  array
-	 * @param  portion specified by class name (used by Presenter)
+	 * @param  PresenterComponentReflection (internal, used by Presenter)
 	 * @return void
 	 */
-	public function saveState(array & $params, $forClass = NULL)
+	public function saveState(array & $params, $reflection = NULL)
 	{
-		foreach (PresenterHelpers::getPersistentParams($forClass === NULL ? $this->getClass() : $forClass) as $nm => $meta)
+		$reflection = $reflection === NULL ? $this->getReflection() : $reflection;
+		foreach ($reflection->getPersistentParams() as $nm => $meta)
 		{
 			if (isset($params[$nm])) {
 				$val = $params[$nm]; // injected value
@@ -166,7 +168,7 @@ abstract class PresenterComponent extends /*Nette\*/ComponentContainer implement
 			}
 
 			if (is_object($val)) {
-				throw new /*\*/InvalidStateException("Persistent parameter must be scalar or array, '$this->class::\$$nm' is " . gettype($val));
+				throw new /*\*/InvalidStateException("Persistent parameter must be scalar or array, {$this->reflection->name}::\$$nm is " . gettype($val));
 
 			} else {
 				if (isset($meta['def'])) {
@@ -223,10 +225,10 @@ abstract class PresenterComponent extends /*Nette\*/ComponentContainer implement
 	 */
 	public static function getPersistentParams()
 	{
-		$rc = new /*\*/ReflectionClass(/**/func_get_arg(0)/**//*get_called_class()*/);
+		$rc = new /*Nette\Reflection\*/ClassReflection(/**/func_get_arg(0)/**//*get_called_class()*/);
 		$params = array();
-		foreach ($rc->getProperties() as $rp) {
-			if ($rp->isPublic() && !$rp->isStatic() && /*Nette\*/Annotations::get($rp, 'persistent')) {
+		foreach ($rc->getProperties(/*\*/ReflectionProperty::IS_PUBLIC) as $rp) {
+			if (!$rp->isStatic() && $rp->hasAnnotation('persistent')) {
 				$params[] = $rp->getName();
 			}
 		}
@@ -248,7 +250,7 @@ abstract class PresenterComponent extends /*Nette\*/ComponentContainer implement
 	public function signalReceived($signal)
 	{
 		if (!$this->tryCall($this->formatSignalMethod($signal), $this->params)) {
-			throw new BadSignalException("There is no handler for signal '$signal' in '{$this->getClass()}' class.");
+			throw new BadSignalException("There is no handler for signal '$signal' in {$this->reflection->name} class.");
 		}
 	}
 

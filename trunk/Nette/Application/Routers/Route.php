@@ -3,14 +3,7 @@
 /**
  * Nette Framework
  *
- * Copyright (c) 2004, 2009 David Grudl (http://davidgrudl.com)
- *
- * This source file is subject to the "Nette license" that is bundled
- * with this package in the file license.txt.
- *
- * For more information please see http://nettephp.com
- *
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @license    http://nettephp.com/license  Nette license
  * @link       http://nettephp.com
  * @category   Nette
@@ -21,18 +14,11 @@
 
 
 
-require_once dirname(__FILE__) . '/../../Object.php';
-
-require_once dirname(__FILE__) . '/../../Application/IRouter.php';
-
-
-
 /**
  * The bidirectional route is responsible for mapping
  * HTTP request to a PresenterRoute object for dispatch and vice-versa.
  *
- * @author     David Grudl
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @package    Nette\Application
  */
 class Route extends /*Nette\*/Object implements IRouter
@@ -306,7 +292,7 @@ class Route extends /*Nette\*/Object implements IRouter
 				$params[$name] = call_user_func($meta[self::FILTER_OUT], $params[$name]);
 			}
 
-			if (isset($meta[self::PATTERN]) && !preg_match($meta[self::PATTERN], $params[$name])) {
+			if (isset($meta[self::PATTERN]) && !preg_match($meta[self::PATTERN], rawurldecode($params[$name]))) {
 				return NULL; // pattern not match
 			}
 		}
@@ -538,7 +524,7 @@ class Route extends /*Nette\*/Object implements IRouter
 					$meta['defOut'] = $meta[self::VALUE];
 				}
 			}
-			$meta[self::PATTERN] = "#(?:$pattern)$#A" . ($this->flags & self::CASE_SENSITIVE ? '' : 'i');
+			$meta[self::PATTERN] = "#(?:$pattern)$#A" . ($this->flags & self::CASE_SENSITIVE ? '' : 'iu');
 
 			// include in expression
 			$re = '(?P<' . str_replace('-', '___', $name) . '>' . $pattern . ')' . $re; // str_replace is dirty trick to enable '-' in parameter name
@@ -565,7 +551,7 @@ class Route extends /*Nette\*/Object implements IRouter
 			throw new /*\*/InvalidArgumentException("Missing closing ']' in mask '$mask'.");
 		}
 
-		$this->re = '#' . $re . '/?$#A' . ($this->flags & self::CASE_SENSITIVE ? '' : 'i');
+		$this->re = '#' . $re . '/?$#A' . ($this->flags & self::CASE_SENSITIVE ? '' : 'iu');
 		$this->metadata = $metadata;
 		$this->sequence = $sequence;
 	}

@@ -3,14 +3,7 @@
 /**
  * Nette Framework
  *
- * Copyright (c) 2004, 2009 David Grudl (http://davidgrudl.com)
- *
- * This source file is subject to the "Nette license" that is bundled
- * with this package in the file license.txt.
- *
- * For more information please see http://nettephp.com
- *
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @license    http://nettephp.com/license  Nette license
  * @link       http://nettephp.com
  * @category   Nette
@@ -21,15 +14,10 @@
 
 
 
-require_once dirname(__FILE__) . '/../Loaders/AutoLoader.php';
-
-
-
 /**
  * Nette auto loader is responsible for loading Nette classes and interfaces.
  *
- * @author     David Grudl
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @package    Nette\Loaders
  */
 class NetteLoader extends AutoLoader
@@ -44,7 +32,9 @@ class NetteLoader extends AutoLoader
 	public $list = array(
 		'abortexception' => '/Application/Exceptions/AbortException.php',
 		'ambiguousserviceexception' => '/ServiceLocator.php',
+		'annotation' => '/Reflection/Annotation.php',
 		'annotations' => '/Annotations.php',
+		'annotationsparser' => '/Reflection/AnnotationsParser.php',
 		'appform' => '/Application/AppForm.php',
 		'application' => '/Application/Application.php',
 		'applicationexception' => '/Application/Exceptions/ApplicationException.php',
@@ -59,29 +49,33 @@ class NetteLoader extends AutoLoader
 		'button' => '/Forms/Controls/Button.php',
 		'cache' => '/Caching/Cache.php',
 		'cachinghelper' => '/Templates/Filters/CachingHelper.php',
+		'callback' => '/Callback.php',
 		'checkbox' => '/Forms/Controls/Checkbox.php',
+		'classreflection' => '/Reflection/ClassReflection.php',
 		'clirouter' => '/Application/Routers/CliRouter.php',
 		'collection' => '/Collections/Collection.php',
 		'component' => '/Component.php',
 		'componentcontainer' => '/ComponentContainer.php',
 		'config' => '/Config/Config.php',
 		'configadapterini' => '/Config/ConfigAdapterIni.php',
-		'configadapterxml' => '/Config/ConfigAdapterXml.php',
 		'configurator' => '/Configurator.php',
 		'control' => '/Application/Control.php',
 		'conventionalrenderer' => '/Forms/Renderers/ConventionalRenderer.php',
 		'curlybracketsfilter' => '/Templates/Filters/LatteFilter.php',
 		'curlybracketsmacros' => '/Templates/Filters/LatteFilter.php',
+		'datetime53' => '/compatibility/DateTime53.php',
 		'debug' => '/Debug.php',
 		'deprecatedexception' => '/exceptions.php',
 		'directorynotfoundexception' => '/exceptions.php',
 		'downloadresponse' => '/Application/Responses/DownloadResponse.php',
 		'dummystorage' => '/Caching/DummyStorage.php',
 		'environment' => '/Environment.php',
+		'extensionreflection' => '/Reflection/ExtensionReflection.php',
 		'fatalerrorexception' => '/exceptions.php',
 		'filenotfoundexception' => '/exceptions.php',
 		'filestorage' => '/Caching/FileStorage.php',
 		'fileupload' => '/Forms/Controls/FileUpload.php',
+		'forbiddenrequestexception' => '/Application/Exceptions/ForbiddenRequestException.php',
 		'form' => '/Forms/Form.php',
 		'formcontainer' => '/Forms/FormContainer.php',
 		'formcontrol' => '/Forms/Controls/FormControl.php',
@@ -91,12 +85,15 @@ class NetteLoader extends AutoLoader
 		'freezableobject' => '/FreezableObject.php',
 		'ftp' => '/Web/Ftp.php',
 		'ftpexception' => '/Web/Ftp.php',
+		'functionreflection' => '/Reflection/FunctionReflection.php',
 		'hashtable' => '/Collections/Hashtable.php',
 		'hiddenfield' => '/Forms/Controls/HiddenField.php',
 		'html' => '/Web/Html.php',
+		'httpcontext' => '/Web/HttpContext.php',
 		'httprequest' => '/Web/HttpRequest.php',
 		'httpresponse' => '/Web/HttpResponse.php',
 		'httpuploadedfile' => '/Web/HttpUploadedFile.php',
+		'iannotation' => '/Reflection/IAnnotation.php',
 		'iauthenticator' => '/Security/IAuthenticator.php',
 		'iauthorizator' => '/Security/IAuthorizator.php',
 		'icachestorage' => '/Caching/ICacheStorage.php',
@@ -152,6 +149,8 @@ class NetteLoader extends AutoLoader
 		'mailmimepart' => '/Mail/MailMimePart.php',
 		'memberaccessexception' => '/exceptions.php',
 		'memcachedstorage' => '/Caching/MemcachedStorage.php',
+		'methodparameterreflection' => '/Reflection/MethodParameterReflection.php',
+		'methodreflection' => '/Reflection/MethodReflection.php',
 		'multirouter' => '/Application/Routers/MultiRouter.php',
 		'multiselectbox' => '/Forms/Controls/MultiSelectBox.php',
 		'netteloader' => '/Loaders/NetteLoader.php',
@@ -163,15 +162,15 @@ class NetteLoader extends AutoLoader
 		'permission' => '/Security/Permission.php',
 		'presenter' => '/Application/Presenter.php',
 		'presentercomponent' => '/Application/PresenterComponent.php',
-		'presenterhelpers' => '/Application/PresenterHelpers.php',
+		'presentercomponentreflection' => '/Application/PresenterComponentReflection.php',
 		'presenterloader' => '/Application/PresenterLoader.php',
 		'presenterrequest' => '/Application/PresenterRequest.php',
+		'propertyreflection' => '/Reflection/PropertyReflection.php',
 		'radiolist' => '/Forms/Controls/RadioList.php',
 		'recursivecomponentiterator' => '/ComponentContainer.php',
 		'recursivehtmliterator' => '/Web/Html.php',
 		'redirectingresponse' => '/Application/Responses/RedirectingResponse.php',
 		'renderresponse' => '/Application/Responses/RenderResponse.php',
-		'repeatercontrol' => '/Forms/Controls/RepeaterControl.php',
 		'robotloader' => '/Loaders/RobotLoader.php',
 		'route' => '/Application/Routers/Route.php',
 		'rule' => '/Forms/Rule.php',
@@ -184,7 +183,6 @@ class NetteLoader extends AutoLoader
 		'sessionnamespace' => '/Web/SessionNamespace.php',
 		'set' => '/Collections/Set.php',
 		'simpleauthenticator' => '/Security/SimpleAuthenticator.php',
-		'simpleloader' => '/Loaders/SimpleLoader.php',
 		'simplerouter' => '/Application/Routers/SimpleRouter.php',
 		'smartcachingiterator' => '/SmartCachingIterator.php',
 		'snippethelper' => '/Templates/Filters/SnippetHelper.php',
@@ -201,7 +199,6 @@ class NetteLoader extends AutoLoader
 		'uri' => '/Web/Uri.php',
 		'uriscript' => '/Web/UriScript.php',
 		'user' => '/Web/User.php',
-		'userclientscript' => '/Forms/Renderers/UserClientScript.php',
 	);
 
 

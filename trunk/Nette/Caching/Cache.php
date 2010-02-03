@@ -3,14 +3,7 @@
 /**
  * Nette Framework
  *
- * Copyright (c) 2004, 2009 David Grudl (http://davidgrudl.com)
- *
- * This source file is subject to the "Nette license" that is bundled
- * with this package in the file license.txt.
- *
- * For more information please see http://nettephp.com
- *
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @license    http://nettephp.com/license  Nette license
  * @link       http://nettephp.com
  * @category   Nette
@@ -21,15 +14,10 @@
 
 
 
-require_once dirname(__FILE__) . '/../Object.php';
-
-
-
 /**
  * Implements the cache for a application.
  *
- * @author     David Grudl
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @package    Nette\Caching
  */
 class Cache extends /*Nette\*/Object implements /*\*/ArrayAccess
@@ -125,23 +113,18 @@ class Cache extends /*Nette\*/Object implements /*\*/ArrayAccess
 	 * @param  string key
 	 * @param  mixed  value
 	 * @param  array  dependencies
-	 * @return void
+	 * @return mixed  value itself
 	 * @throws \InvalidArgumentException
 	 */
 	public function save($key, $data, array $dp = NULL)
 	{
-		if (!is_string($key)) {
-			throw new /*\*/InvalidArgumentException("Cache key name must be string, " . gettype($key) ." given.");
+		if (!is_string($key) && !is_int($key)) {
+			throw new /*\*/InvalidArgumentException("Cache key name must be string or integer, " . gettype($key) ." given.");
 		}
 
 		// convert expire into relative amount of seconds
 		if (!empty($dp[Cache::EXPIRE])) {
-			$expire = & $dp[Cache::EXPIRE];
-			if (is_string($expire) && !is_numeric($expire)) {
-				$expire = strtotime($expire) - time();
-			} elseif ($expire > /*Nette\*/Tools::YEAR) {
-				$expire -= time();
-			}
+			$dp[Cache::EXPIRE] = /*Nette\*/Tools::createDateTime($dp[Cache::EXPIRE])->format('U') - time();
 		}
 
 		// convert FILES into CALLBACKS
@@ -169,12 +152,18 @@ class Cache extends /*Nette\*/Object implements /*\*/ArrayAccess
 			unset($dp[self::CONSTS]);
 		}
 
+		if (is_object($data)) {
+			$dp[self::CALLBACKS][] = array(array(__CLASS__, 'checkSerializationVersion'), get_class($data),
+				/*Nette\Reflection\*/ClassReflection::from($data)->getAnnotation('serializationVersion'));
+		}
+
 		$this->key = NULL;
 		$this->storage->write(
 			$this->namespace . self::NAMESPACE_SEPARATOR . $key,
 			$data,
 			(array) $dp
 		);
+		return $data;
 	}
 
 
@@ -209,8 +198,8 @@ class Cache extends /*Nette\*/Object implements /*\*/ArrayAccess
 	 */
 	public function offsetSet($key, $data)
 	{
-		if (!is_string($key)) { // prevents NULL
-			throw new /*\*/InvalidArgumentException("Cache key name must be string, " . gettype($key) ." given.");
+		if (!is_string($key) && !is_int($key)) { // prevents NULL
+			throw new /*\*/InvalidArgumentException("Cache key name must be string or integer, " . gettype($key) ." given.");
 		}
 
 		$this->key = $this->data = NULL;
@@ -231,10 +220,11 @@ class Cache extends /*Nette\*/Object implements /*\*/ArrayAccess
 	 */
 	public function offsetGet($key)
 	{
-		if (!is_string($key)) {
-			throw new /*\*/InvalidArgumentException("Cache key name must be string, " . gettype($key) ." given.");
+		if (!is_string($key) && !is_int($key)) {
+			throw new /*\*/InvalidArgumentException("Cache key name must be string or integer, " . gettype($key) ." given.");
 		}
 
+		$key = (string) $key;
 		if ($this->key === $key) {
 			return $this->data;
 		}
@@ -253,11 +243,11 @@ class Cache extends /*Nette\*/Object implements /*\*/ArrayAccess
 	 */
 	public function offsetExists($key)
 	{
-		if (!is_string($key)) {
-			throw new /*\*/InvalidArgumentException("Cache key name must be string, " . gettype($key) ." given.");
+		if (!is_string($key) && !is_int($key)) {
+			throw new /*\*/InvalidArgumentException("Cache key name must be string or integer, " . gettype($key) ." given.");
 		}
 
-		$this->key = $key;
+		$this->key = (string) $key;
 		$this->data = $this->storage->read($this->namespace . self::NAMESPACE_SEPARATOR . $key);
 		return $this->data !== NULL;
 	}
@@ -272,8 +262,8 @@ class Cache extends /*Nette\*/Object implements /*\*/ArrayAccess
 	 */
 	public function offsetUnset($key)
 	{
-		if (!is_string($key)) {
-			throw new /*\*/InvalidArgumentException("Cache key name must be string, " . gettype($key) ." given.");
+		if (!is_string($key) && !is_int($key)) {
+			throw new /*\*/InvalidArgumentException("Cache key name must be string or integer, " . gettype($key) ." given.");
 		}
 
 		$this->key = $this->data = NULL;
@@ -326,6 +316,19 @@ class Cache extends /*Nette\*/Object implements /*\*/ArrayAccess
 	private static function checkFile($file, $time)
 	{
 		return @filemtime($file) == $time; // intentionally @
+	}
+
+
+
+	/**
+	 * Checks object @serializationVersion label.
+	 * @param  string
+	 * @param  mixed
+	 * @return bool
+	 */
+	private static function checkSerializationVersion($class, $value)
+	{
+		return /*Nette\Reflection\*/ClassReflection::from($class)->getAnnotation('serializationVersion') === $value;
 	}
 
 }

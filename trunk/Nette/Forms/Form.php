@@ -3,14 +3,7 @@
 /**
  * Nette Framework
  *
- * Copyright (c) 2004, 2009 David Grudl (http://davidgrudl.com)
- *
- * This source file is subject to the "Nette license" that is bundled
- * with this package in the file license.txt.
- *
- * For more information please see http://nettephp.com
- *
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @license    http://nettephp.com/license  Nette license
  * @link       http://nettephp.com
  * @category   Nette
@@ -21,15 +14,10 @@
 
 
 
-require_once dirname(__FILE__) . '/../Forms/FormContainer.php';
-
-
-
 /**
  * Creates, validates and renders HTML forms.
  *
- * @author     David Grudl
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @package    Nette\Forms
  *
  * @example    forms/basic-example.php  Form definition using fluent interfaces
@@ -507,6 +495,7 @@ class Form extends FormContainer
 	 */
 	public function processHttpRequest()
 	{
+		trigger_error(__METHOD__ . '() is deprecated; use fireEvents() instead.', E_USER_WARNING);
 		$this->fireEvents();
 	}
 
@@ -540,9 +529,9 @@ class Form extends FormContainer
 	 */
 	public function addError($message)
 	{
-		if (!in_array($message, $this->errors, TRUE)) {
+		$this->valid = FALSE;
+		if ($message !== NULL && !in_array($message, $this->errors, TRUE)) {
 			$this->errors[] = $message;
-			$this->valid = FALSE;
 		}
 	}
 
@@ -659,8 +648,7 @@ class Form extends FormContainer
 			if (func_get_args() && func_get_arg(0)) {
 				throw $e;
 			} else {
-				trigger_error($e->getMessage(), E_USER_WARNING);
-				return '';
+				/*Nette\*/Debug::toStringException($e);
 			}
 		}
 	}

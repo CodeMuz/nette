@@ -3,14 +3,7 @@
 /**
  * Nette Framework
  *
- * Copyright (c) 2004, 2009 David Grudl (http://davidgrudl.com)
- *
- * This source file is subject to the "Nette license" that is bundled
- * with this package in the file license.txt.
- *
- * For more information please see http://nettephp.com
- *
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @license    http://nettephp.com/license  Nette license
  * @link       http://nettephp.com
  * @category   Nette
@@ -131,8 +124,10 @@ class NetteTestCase
 			}
 		}
 
-		if (!$tests) {
-			throw new NetteTestCaseException("Missing EXPECT and/or EXPECTHEADERS section.");
+		if (!$tests) { // expecting no output
+			if (trim($output) !== '') {
+				throw new NetteTestCaseException("Empty output doesn't match.");
+			}
 		}
 	}
 

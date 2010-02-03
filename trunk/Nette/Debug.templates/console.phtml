@@ -3,15 +3,7 @@
 /**
  * Nette Framework - Dump console template.
  *
- * Copyright (c) 2004, 2009 David Grudl (http://davidgrudl.com)
- *
- * This source file is subject to the "Nette license" that is bundled
- * with this package in the file license.txt.
- *
- * For more information please see http://nettephp.com
- *
- * @author     David Grudl
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @license    http://nettephp.com/license  Nette license
  * @link       http://nettephp.com
  * @category   Nette
@@ -174,10 +166,10 @@ ob_start();
 
 	<table>
 	<?php $i = 0 ?>
-	<?php foreach ((is_array($item['var']) ? $item['var'] : array('' => $item['var'])) as $key => $val): ?>
+	<?php foreach ($item['dump'] as $key => $dump): ?>
 	<tr class="<?php echo $i++ % 2 ? 'odd' : 'even' ?>">
 		<th><?php echo htmlspecialchars($key) ?></th>
-		<td><?php echo preg_replace_callback('#(<pre class="dump">|\s+)?(.*)\((\d+)\) <code>#', /*Nette\*/'_netteDumpCb2', Debug::dump($val, TRUE)) ?></td>
+		<td><?php echo preg_replace_callback('#(<pre class="dump">|\s+)?(.*)\((\d+)\) <code>#', /*Nette\*/'_netteDumpCb2', $dump) ?></td>
 	</tr>
 	<?php endforeach ?>
 	</table>

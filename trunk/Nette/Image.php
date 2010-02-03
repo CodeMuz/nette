@@ -3,14 +3,7 @@
 /**
  * Nette Framework
  *
- * Copyright (c) 2004, 2009 David Grudl (http://davidgrudl.com)
- *
- * This source file is subject to the "Nette license" that is bundled
- * with this package in the file license.txt.
- *
- * For more information please see http://nettephp.com
- *
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @license    http://nettephp.com/license  Nette license
  * @link       http://nettephp.com
  * @category   Nette
@@ -18,10 +11,6 @@
  */
 
 /*namespace Nette;*/
-
-
-
-require_once dirname(__FILE__) . '/Object.php';
 
 
 
@@ -35,8 +24,7 @@ require_once dirname(__FILE__) . '/Object.php';
  * $image->send();
  * </code>
  *
- * @author     David Grudl
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @package    Nette
  *
  * @property-read int $width
@@ -50,6 +38,9 @@ class Image extends Object
 
 	/** {@link resize()} will ignore aspect ratio */
 	const STRETCH = 2;
+
+	/** {@link resize()} fits in given area */
+	const FIT = 0;
 
 	/** {@link resize()} fills (and even overflows) given area */
 	const FILL = 4;
@@ -103,7 +94,7 @@ class Image extends Object
 		}
 
 		$info = @getimagesize($file); // intentionally @
-		if (self::$useImageMagick && (empty($info) || $info[0] * $info[1] > 2e6)) {
+		if (self::$useImageMagick && (empty($info) || $info[0] * $info[1] > 9e5)) { // cca 1024x768
 			return new ImageMagick($file, $format);
 		}
 
@@ -255,12 +246,29 @@ class Image extends Object
 	 * @param  int    flags
 	 * @return Image  provides a fluent interface
 	 */
-	public function resize($newWidth, $newHeight, $flags = 0)
+	public function resize($width, $height, $flags = self::FIT)
 	{
-		list($newWidth, $newHeight) = $this->calculateSize($newWidth, $newHeight, $flags);
-		$newImage = self::fromBlank($newWidth, $newHeight, self::RGB(0, 0, 0, 127))->getImageResource();
-		imagecopyresampled($newImage, $this->getImageResource(), 0, 0, 0, 0, $newWidth, $newHeight, $this->getWidth(), $this->getHeight());
-		$this->image = $newImage;
+		list($newWidth, $newHeight) = self::calculateSize($this->getWidth(), $this->getHeight(), $width, $height, $flags);
+
+		if ($newWidth !== $this->getWidth() || $newHeight !== $this->getHeight()) { // resize
+			$newImage = self::fromBlank($newWidth, $newHeight, self::RGB(0, 0, 0, 127))->getImageResource();
+			imagecopyresampled(
+				$newImage, $this->getImageResource(),
+				0, 0, 0, 0,
+				$newWidth, $newHeight, $this->getWidth(), $this->getHeight()
+			);
+			$this->image = $newImage;
+		}
+
+		if ($width < 0 || $height < 0) { // flip is processed in two steps for better quality
+			$newImage = self::fromBlank($newWidth, $newHeight, self::RGB(0, 0, 0, 127))->getImageResource();
+			imagecopyresampled(
+				$newImage, $this->getImageResource(),
+				0, 0, $width < 0 ? $newWidth - 1 : 0, $height < 0 ? $newHeight - 1 : 0,
+				$newWidth, $newHeight, $width < 0 ? -$newWidth : $newWidth, $height < 0 ? -$newHeight : $newHeight
+			);
+			$this->image = $newImage;
+		}
 		return $this;
 	}
 
@@ -268,53 +276,52 @@ class Image extends Object
 
 	/**
 	 * Calculates dimensions of resized image.
+	 * @param  mixed  source width
+	 * @param  mixed  source height
 	 * @param  mixed  width in pixels or percent
 	 * @param  mixed  height in pixels or percent
 	 * @param  int    flags
 	 * @return array
 	 */
-	public function calculateSize($newWidth, $newHeight, $flags = 0)
+	public static function calculateSize($srcWidth, $srcHeight, $newWidth, $newHeight, $flags = self::FIT)
 	{
-		$width = $this->getWidth();
-		$height = $this->getHeight();
-
 		if (substr($newWidth, -1) === '%') {
-			$newWidth = round($width / 100 * $newWidth);
+			$newWidth = round($srcWidth / 100 * abs($newWidth));
 			$flags |= self::ENLARGE;
 			$percents = TRUE;
 		} else {
-			$newWidth = (int) $newWidth;
+			$newWidth = (int) abs($newWidth);
 		}
 
 		if (substr($newHeight, -1) === '%') {
-			$newHeight = round($height / 100 * $newHeight);
+			$newHeight = round($srcHeight / 100 * abs($newHeight));
 			$flags |= empty($percents) ? self::ENLARGE : self::STRETCH;
 		} else {
-			$newHeight = (int) $newHeight;
+			$newHeight = (int) abs($newHeight);
 		}
 
 		if ($flags & self::STRETCH) { // non-proportional
-			if ($newWidth < 1 || $newHeight < 1) {
+			if (empty($newWidth) || empty($newHeight)) {
 				throw new /*\*/InvalidArgumentException('For stretching must be both width and height specified.');
 			}
 
 			if (($flags & self::ENLARGE) === 0) {
-				$newWidth = round($width * min(1, $newWidth / $width));
-				$newHeight = round($height * min(1, $newHeight / $height));
+				$newWidth = round($srcWidth * min(1, $newWidth / $srcWidth));
+				$newHeight = round($srcHeight * min(1, $newHeight / $srcHeight));
 			}
 
 		} else {  // proportional
-			if ($newWidth < 1 && $newHeight < 1) {
+			if (empty($newWidth) && empty($newHeight)) {
 				throw new /*\*/InvalidArgumentException('At least width or height must be specified.');
 			}
 
 			$scale = array();
 			if ($newWidth > 0) { // fit width
-				$scale[] = $newWidth / $width;
+				$scale[] = $newWidth / $srcWidth;
 			}
 
 			if ($newHeight > 0) { // fit height
-				$scale[] = $newHeight / $height;
+				$scale[] = $newHeight / $srcHeight;
 			}
 
 			if ($flags & self::FILL) {
@@ -326,11 +333,11 @@ class Image extends Object
 			}
 
 			$scale = min($scale);
-			$newWidth = round($width * $scale);
-			$newHeight = round($height * $scale);
+			$newWidth = round($srcWidth * $scale);
+			$newHeight = round($srcHeight * $scale);
 		}
 
-		return array($newWidth, $newHeight);
+		return array((int) $newWidth, (int) $newHeight);
 	}
 
 
@@ -446,7 +453,7 @@ class Image extends Object
 			return imagepng($this->getImageResource(), $file, $quality);
 
 		case self::GIF:
-			return imagegif($this->getImageResource(), $file);
+			return $file === NULL ? imagegif($this->getImageResource()) : imagegif($this->getImageResource(), $file); // PHP bug #44591
 
 		default:
 			throw new /*\*/Exception("Unsupported image type.");
@@ -480,8 +487,7 @@ class Image extends Object
 			return $this->toString();
 
 		} catch (/*\*/Exception $e) {
-			trigger_error($e->getMessage(), E_USER_WARNING);
-			return '';
+			Debug::toStringException($e);
 		}
 	}
 

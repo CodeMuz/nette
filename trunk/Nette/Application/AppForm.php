@@ -3,14 +3,7 @@
 /**
  * Nette Framework
  *
- * Copyright (c) 2004, 2009 David Grudl (http://davidgrudl.com)
- *
- * This source file is subject to the "Nette license" that is bundled
- * with this package in the file license.txt.
- *
- * For more information please see http://nettephp.com
- *
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @license    http://nettephp.com/license  Nette license
  * @link       http://nettephp.com
  * @category   Nette
@@ -21,17 +14,10 @@
 
 
 
-require_once dirname(__FILE__) . '/../Forms/Form.php';
-
-require_once dirname(__FILE__) . '/../Application/ISignalReceiver.php';
-
-
-
 /**
  * Web form as presenter component.
  *
- * @author     David Grudl
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @package    Nette\Application
  *
  * @property-read Presenter $presenter
@@ -74,11 +60,11 @@ class AppForm extends /*Nette\Forms\*/Form implements ISignalReceiver
 	protected function attached($presenter)
 	{
 		if ($presenter instanceof Presenter) {
-			$this->setAction(new Link(
-				$presenter,
-				$this->lookupPath('Nette\Application\Presenter') . self::NAME_SEPARATOR . 'submit!',
-				array()
-			));
+				$this->setAction(new Link(
+					$presenter,
+					$this->lookupPath('Nette\Application\Presenter') . self::NAME_SEPARATOR . 'submit!',
+					array()
+				));
 
 			// fill-in the form with HTTP data
 			if ($this->isSubmitted()) {
@@ -144,7 +130,7 @@ class AppForm extends /*Nette\Forms\*/Form implements ISignalReceiver
 			$this->fireEvents();
 
 		} else {
-			throw new BadSignalException("There is no handler for signal '$signal' in '{$this->getClass()}'.");
+			throw new BadSignalException("There is no handler for signal '$signal' in {$this->reflection->name}.");
 		}
 	}
 
