@@ -7,4 +7,4 @@ http://nettephp.com/download
 
 You can browse the source, clone it, and submit patches at Github site at:
 
-http://github.com/dg/nette/tree/master
+http://github.com/nette/framework/tree/master
