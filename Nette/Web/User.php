@@ -3,14 +3,7 @@
 /**
  * Nette Framework
  *
- * Copyright (c) 2004, 2009 David Grudl (http://davidgrudl.com)
- *
- * This source file is subject to the "Nette license" that is bundled
- * with this package in the file license.txt.
- *
- * For more information please see http://nettephp.com
- *
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @license    http://nettephp.com/license  Nette license
  * @link       http://nettephp.com
  * @category   Nette
@@ -23,17 +16,10 @@
 
 
 
-require_once dirname(__FILE__) . '/../Object.php';
-
-require_once dirname(__FILE__) . '/../Web/IUser.php';
-
-
-
 /**
  * Authentication and authorization.
  *
- * @author     David Grudl
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @package    Nette\Web
  *
  * @property-read Nette\Security\IIdentity $identity
@@ -210,24 +196,18 @@ class User extends /*Nette\*/Object implements IUser
 
 	/**
 	 * Enables sign out after inactivity.
-	 * @param  mixed number of seconds or timestamp
+	 * @param  string|int|DateTime number of seconds or timestamp
 	 * @param  bool  sign out when the browser is closed?
 	 * @param  bool  clear the identity from persistent storage?
 	 * @return User  provides a fluent interface
 	 */
-	public function setExpiration($seconds, $whenBrowserIsClosed = TRUE, $clearIdentity = FALSE)
+	public function setExpiration($time, $whenBrowserIsClosed = TRUE, $clearIdentity = FALSE)
 	{
-		if (is_string($seconds) && !is_numeric($seconds)) {
-			$seconds = strtotime($seconds);
-		}
-
 		$session = $this->getSessionNamespace(TRUE);
-		if ($seconds > 0) {
-			if ($seconds <= /*Nette\*/Tools::YEAR) {
-				$seconds += time();
-			}
-			$session->expireTime = $seconds;
-			$session->expireDelta = $seconds - time();
+		if ($time) {
+			$time = /*Nette\*/Tools::createDateTime($time)->format('U');
+			$session->expireTime = $time;
+			$session->expireDelta = $time - time();
 
 		} else {
 			unset($session->expireTime, $session->expireDelta);

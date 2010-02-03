@@ -3,14 +3,7 @@
 /**
  * Nette Framework
  *
- * Copyright (c) 2004, 2009 David Grudl (http://davidgrudl.com)
- *
- * This source file is subject to the "Nette license" that is bundled
- * with this package in the file license.txt.
- *
- * For more information please see http://nettephp.com
- *
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @license    http://nettephp.com/license  Nette license
  * @link       http://nettephp.com
  * @category   Nette
@@ -18,10 +11,6 @@
  */
 
 /*namespace Nette\Web;*/
-
-
-
-require_once dirname(__FILE__) . '/../FreezableObject.php';
 
 
 
@@ -38,8 +27,7 @@ require_once dirname(__FILE__) . '/../FreezableObject.php';
  * - authority:   [user[:password]@]host[:port]
  * - hostUri:     http://user:password@nettephp.com:8042
  *
- * @author     David Grudl
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @package    Nette\Web
  *
  * @property   string $scheme
@@ -112,8 +100,8 @@ class Uri extends /*Nette\*/FreezableObject
 			}
 
 		} elseif ($uri instanceof self) {
-			foreach ($uri as $key => $val) {
-				$this->$key = $val;
+			foreach ($this as $key => $val) {
+				$this->$key = $uri->$key;
 			}
 		}
 	}
@@ -200,6 +188,7 @@ class Uri extends /*Nette\*/FreezableObject
 	 */
 	public function setPass($value)
 	{
+		trigger_error(__METHOD__ . '() is deprecated; use setPassword() instead.', E_USER_WARNING);
 		$this->setPassword($value);
 	}
 
@@ -210,6 +199,7 @@ class Uri extends /*Nette\*/FreezableObject
 	 */
 	public function getPass()
 	{
+		trigger_error(__METHOD__ . '() is deprecated; use getPassword() instead.', E_USER_WARNING);
 		return $this->pass;
 	}
 
@@ -418,12 +408,7 @@ class Uri extends /*Nette\*/FreezableObject
 		}
 
 		// compare query strings
-		$part = (string) strtok('?#');
-		if ($part !== '') {
-			$tmp = preg_split('#[&;]#', self::unescape(strtr($part, '+', ' '), '%&;=+'));
-			sort($tmp);
-			$part = implode('&', $tmp);
-		}
+		$part = self::unescape(strtr((string) strtok('?#'), '+', ' '), '%&;=+');
 		return $part === $this->query;
 	}
 
@@ -437,14 +422,8 @@ class Uri extends /*Nette\*/FreezableObject
 	{
 		$this->updating();
 		$this->path = $this->path === '' ? '/' : self::unescape($this->path, '%/');
-
 		$this->host = strtolower(rawurldecode($this->host));
-
-		if ($this->query !== '') {
-			$tmp = preg_split('#[&;]#', self::unescape(strtr($this->query, '+', ' '), '%&;=+'));
-			sort($tmp);
-			$this->query = implode('&', $tmp);
-		}
+		$this->query = self::unescape(strtr($this->query, '+', ' '), '%&;=+');
 	}
 
 

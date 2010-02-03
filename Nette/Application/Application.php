@@ -3,14 +3,7 @@
 /**
  * Nette Framework
  *
- * Copyright (c) 2004, 2009 David Grudl (http://davidgrudl.com)
- *
- * This source file is subject to the "Nette license" that is bundled
- * with this package in the file license.txt.
- *
- * For more information please see http://nettephp.com
- *
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @license    http://nettephp.com/license  Nette license
  * @link       http://nettephp.com
  * @category   Nette
@@ -23,15 +16,10 @@
 
 
 
-require_once dirname(__FILE__) . '/../Object.php';
-
-
-
 /**
  * Front Controller.
  *
- * @author     David Grudl
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @package    Nette\Application
  */
 class Application extends /*Nette\*/Object
@@ -99,8 +87,7 @@ class Application extends /*Nette\*/Object
 			if (!in_array($method, $this->allowedMethods, TRUE)) {
 				$httpResponse->setCode(/*Nette\Web\*/IHttpResponse::S501_NOT_IMPLEMENTED);
 				$httpResponse->setHeader('Allow', implode(',', $this->allowedMethods));
-				$method = htmlSpecialChars($method);
-				echo "<h1>Method $method is not implemented</h1>";
+				echo '<h1>Method ' . htmlSpecialChars($method) . ' is not implemented</h1>';
 				return;
 			}
 		}

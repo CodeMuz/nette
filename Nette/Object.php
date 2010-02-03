@@ -3,14 +3,7 @@
 /**
  * Nette Framework
  *
- * Copyright (c) 2004, 2009 David Grudl (http://davidgrudl.com)
- *
- * This source file is subject to the "Nette license" that is bundled
- * with this package in the file license.txt.
- *
- * For more information please see http://nettephp.com
- *
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @license    http://nettephp.com/license  Nette license
  * @link       http://nettephp.com
  * @category   Nette
@@ -18,12 +11,6 @@
  */
 
 /*namespace Nette;*/
-
-
-
-require_once dirname(__FILE__) . '/exceptions.php';
-
-require_once dirname(__FILE__) . '/ObjectMixin.php';
 
 
 
@@ -63,24 +50,22 @@ require_once dirname(__FILE__) . '/ObjectMixin.php';
  * $obj->newMethod($x);
  * </code>
  *
- * @author     David Grudl
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @package    Nette
  *
  * @property-read string $class
- * @property-read \ReflectionObject $reflection
+ * @property-read Nette\Reflection\ClassReflection $reflection
  */
 abstract class Object
 {
 
 	/**
-	 * Returns the name of the class of this object.
-	 *
-	 * @return string
+	 * @deprecated
 	 */
-	final public /*static*/ function getClass()
+	public function getClass()
 	{
-		return /*get_called_class()*/ /**/get_class($this)/**/;
+		trigger_error(__METHOD__ . '() is deprecated; use getReflection()->getName() instead.', E_USER_WARNING);
+		return get_class($this);
 	}
 
 
@@ -88,11 +73,11 @@ abstract class Object
 	/**
 	 * Access to reflection.
 	 *
-	 * @return \ReflectionObject
+	 * @return Nette\Reflection\ClassReflection
 	 */
-	final public function getReflection()
+	public /*static */function getReflection()
 	{
-		return new /*\*/ReflectionObject($this);
+		return new /*Nette\Reflection\*/ClassReflection(/**/$this/**//*get_called_class()*/);
 	}
 
 
@@ -142,7 +127,12 @@ abstract class Object
 		} else {
 			list($class, $name) = explode('::', $name);
 		}
-		return ObjectMixin::extensionMethod($class, $name, $callback);
+		$class = new /*Nette\Reflection\*/ClassReflection($class);
+		if ($callback === NULL) {
+			return $class->getExtensionMethod($name);
+		} else {
+			$class->setExtensionMethod($name, $callback);
+		}
 	}
 
 
@@ -198,7 +188,7 @@ abstract class Object
 	 */
 	public function __unset($name)
 	{
-		throw new /*\*/MemberAccessException("Cannot unset the property $this->class::\$$name.");
+		throw new /*\*/MemberAccessException("Cannot unset the property {$this->reflection->name}::\$$name.");
 	}
 
 }

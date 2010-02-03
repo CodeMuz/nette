@@ -3,14 +3,7 @@
 /**
  * Nette Framework
  *
- * Copyright (c) 2004, 2009 David Grudl (http://davidgrudl.com)
- *
- * This source file is subject to the "Nette license" that is bundled
- * with this package in the file license.txt.
- *
- * For more information please see http://nettephp.com
- *
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @license    http://nettephp.com/license  Nette license
  * @link       http://nettephp.com
  * @category   Nette
@@ -24,8 +17,7 @@
 /**
  * Array tools library.
  *
- * @author     David Grudl
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @package    Nette
  */
 final class ArrayTools
@@ -126,7 +118,7 @@ final class ArrayTools
 	public static function insertBefore(array &$arr, $key, array $inserted)
 	{
 		$offset = self::searchKey($arr, $key);
-		$arr = array_slice($arr, 0, $offset, TRUE) + $inserted + array_slice($arr, $offset, NULL, TRUE);
+		$arr = array_slice($arr, 0, $offset, TRUE) + $inserted + array_slice($arr, $offset, count($arr), TRUE);
 	}
 
 
@@ -141,8 +133,27 @@ final class ArrayTools
 	public static function insertAfter(array &$arr, $key, array $inserted)
 	{
 		$offset = self::searchKey($arr, $key);
-		$offset = $offset === FALSE ? NULL : $offset + 1;
-		$arr = array_slice($arr, 0, $offset, TRUE) + $inserted + array_slice($arr, $offset, NULL, TRUE);
+		$offset = $offset === FALSE ? count($arr) : $offset + 1;
+		$arr = array_slice($arr, 0, $offset, TRUE) + $inserted + array_slice($arr, $offset, count($arr), TRUE);
+	}
+
+
+
+	/**
+	 * Renames key in array.
+	 * @param  array
+	 * @param  mixed  old key
+	 * @param  mixed  new key
+	 * @return void
+	 */
+	public static function renameKey(array &$arr, $oldKey, $newKey)
+	{
+		$offset = self::searchKey($arr, $oldKey);
+		if ($offset !== FALSE) {
+		    $keys = array_keys($arr);
+		    $keys[$offset] = $newKey;
+    		$arr = array_combine($keys, $arr);
+    	}
 	}
 
 }

@@ -3,14 +3,7 @@
 /**
  * Nette Framework
  *
- * Copyright (c) 2004, 2009 David Grudl (http://davidgrudl.com)
- *
- * This source file is subject to the "Nette license" that is bundled
- * with this package in the file license.txt.
- *
- * For more information please see http://nettephp.com
- *
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @license    http://nettephp.com/license  Nette license
  * @link       http://nettephp.com
  * @category   Nette
@@ -23,15 +16,10 @@
 
 
 
-require_once dirname(__FILE__) . '/../Collections/ICollection.php';
-
-
-
 /**
  * SPL ArrayObject customization.
  *
- * @author     David Grudl
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @package    Nette\Collections
  *
  * @property-read bool $frozen
@@ -266,13 +254,11 @@ abstract class Collection extends /*\*/ArrayObject implements ICollection
 
 
 	/**
-	 * Returns the name of the class of this object.
-	 *
-	 * @return string
+	 * @return Nette\Reflection\ClassReflection
 	 */
-	final public function getClass()
+	public /*static */function getReflection()
 	{
-		return get_class($this);
+		return new /*Nette\Reflection\*/ClassReflection(/**/$this/**//*get_called_class()*/);
 	}
 
 
@@ -346,7 +332,7 @@ abstract class Collection extends /*\*/ArrayObject implements ICollection
 	 */
 	public function __unset($name)
 	{
-		throw new /*\*/MemberAccessException("Cannot unset the property $this->class::\$$name.");
+		throw new /*\*/MemberAccessException("Cannot unset the property {$this->reflection->name}::\$$name.");
 	}
 
 

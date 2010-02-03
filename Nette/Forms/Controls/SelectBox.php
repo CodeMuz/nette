@@ -3,14 +3,7 @@
 /**
  * Nette Framework
  *
- * Copyright (c) 2004, 2009 David Grudl (http://davidgrudl.com)
- *
- * This source file is subject to the "Nette license" that is bundled
- * with this package in the file license.txt.
- *
- * For more information please see http://nettephp.com
- *
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @license    http://nettephp.com/license  Nette license
  * @link       http://nettephp.com
  * @category   Nette
@@ -21,15 +14,10 @@
 
 
 
-require_once dirname(__FILE__) . '/../../Forms/Controls/FormControl.php';
-
-
-
 /**
  * Select box control that allows single item selection.
  *
- * @author     David Grudl
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @package    Nette\Forms
  *
  * @property-read mixed $rawValue
@@ -64,7 +52,7 @@ class SelectBox extends FormControl
 		$this->control->setName('select');
 		$this->control->size = $size > 1 ? (int) $size : NULL;
 		$this->control->onfocus = 'this.onmousewheel=function(){return false}';  // prevents accidental change in IE
-		$this->label->onclick = 'return false';  // prevents deselect in IE 5 - 6
+		$this->label->onclick = 'document.getElementById(this.htmlFor).focus();return false';  // prevents deselect in IE 5 - 6
 		if ($items !== NULL) {
 			$this->setItems($items);
 		}

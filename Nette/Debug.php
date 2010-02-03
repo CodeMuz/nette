@@ -3,14 +3,7 @@
 /**
  * Nette Framework
  *
- * Copyright (c) 2004, 2009 David Grudl (http://davidgrudl.com)
- *
- * This source file is subject to the "Nette license" that is bundled
- * with this package in the file license.txt.
- *
- * For more information please see http://nettephp.com
- *
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @license    http://nettephp.com/license  Nette license
  * @link       http://nettephp.com
  * @category   Nette
@@ -23,19 +16,11 @@
 
 
 
-/**/require_once dirname(__FILE__) . '/compatibility.php';/**/
-
-require_once dirname(__FILE__) . '/exceptions.php';
-
-require_once dirname(__FILE__) . '/Framework.php';
-
-
 
 /**
  * Debug static class.
  *
- * @author     David Grudl
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @package    Nette
  */
 final class Debug
@@ -184,7 +169,7 @@ final class Debug
 			}
 
 			if (ini_get('html_errors')) {
-				$error['message'] = html_entity_decode(strip_tags($error['message']));
+				$error['message'] = html_entity_decode(strip_tags($error['message']), ENT_QUOTES, 'UTF-8');
 			}
 
 			self::processException(new /*\*/FatalErrorException($error['message'], 0, $error['type'], $error['file'], $error['line'], NULL), TRUE);
@@ -251,8 +236,9 @@ final class Debug
 
 		if (self::$showLocation) {
 			$trace = debug_backtrace();
-			if (isset($trace[0]['file'], $trace[0]['line'])) {
-				$output = substr_replace($output, ' <small>' . htmlspecialchars("in file {$trace[0]['file']} on line {$trace[0]['line']}", ENT_NOQUOTES) . '</small>', -8, 0);
+			$i = isset($trace[1]['class']) && $trace[1]['class'] === __CLASS__ ? 1 : 0;
+			if (isset($trace[$i]['file'], $trace[$i]['line'])) {
+				$output = substr_replace($output, ' <small>' . htmlspecialchars("in file {$trace[$i]['file']} on line {$trace[$i]['line']}", ENT_NOQUOTES) . '</small>', -8, 0);
 			}
 		}
 
@@ -281,7 +267,11 @@ final class Debug
 	public static function consoleDump($var, $title = NULL)
 	{
 		if (!self::$productionMode) {
-			self::$consoleData[] = array('title' => $title, 'var' => $var);
+			$dump = array();
+			foreach ((is_array($var) ? $var : array('' => $var)) as $key => $val) {
+				$dump[$key] = self::dump($val, TRUE);
+			}
+			self::$consoleData[] = array('title' => $title, 'dump' => $dump);
 		}
 		return $var;
 	}
@@ -419,7 +409,7 @@ final class Debug
 
 	/**
 	 * Enables displaying or logging errors and exceptions.
-	 * @param  mixed         production, development mode or autodetection
+	 * @param  mixed         production, development mode, autodetection or IP address(es).
 	 * @param  string        error log file (FALSE disables logging in production mode)
 	 * @param  array|string  administrator email or email headers; enables email sending in production mode
 	 * @return void
@@ -431,7 +421,15 @@ final class Debug
 		// production/development mode detection
 		if (is_bool($mode)) {
 			self::$productionMode = $mode;
+
+		} elseif (is_string($mode)) { // IP adresses
+			$mode = preg_split('#[,\s]+#', $mode);
 		}
+
+		if (is_array($mode)) { // IP adresses
+			self::$productionMode = !isset($_SERVER['REMOTE_ADDR']) || !in_array($_SERVER['REMOTE_ADDR'], $mode, TRUE);
+		}
+
 		if (self::$productionMode === self::DETECT) {
 			if (class_exists(/*Nette\*/'Environment')) {
 				self::$productionMode = Environment::isProduction();
@@ -476,7 +474,7 @@ final class Debug
 
 		} elseif (ini_get('log_errors') != (bool) self::$logFile || // intentionally ==
 			(ini_get('display_errors') != !self::$productionMode && ini_get('display_errors') !== (self::$productionMode ? 'stderr' : 'stdout'))) {
-			throw new /*\*/NotSupportedException('Function ini_set() must be enabled.');
+			throw new /*\*/LogicException('Function ini_set() must be enabled.');
 		}
 
 		self::$sendEmails = self::$logFile && $email;
@@ -527,7 +525,6 @@ final class Debug
 		if (!headers_sent()) {
 			header('HTTP/1.1 500 Internal Server Error');
 		}
-
 		self::processException($exception, TRUE);
 		exit;
 	}
@@ -555,11 +552,7 @@ final class Debug
 			return NULL; // nothing to do
 
 		} elseif (self::$strictMode) {
-			if (!headers_sent()) {
-				header('HTTP/1.1 500 Internal Server Error');
-			}
-			self::processException(new /*\*/FatalErrorException($message, 0, $severity, $file, $line, $context), TRUE);
-			exit;
+			self::_exceptionHandler(new /*\*/FatalErrorException($message, 0, $severity, $file, $line, $context), TRUE);
 		}
 
 		static $types = array(
@@ -603,18 +596,33 @@ final class Debug
 			return;
 
 		} elseif (self::$logFile) {
-			error_log("PHP Fatal error:  Uncaught $exception");
-			$file = @strftime('%d-%b-%Y %H-%M-%S ', Debug::$time) . strstr(number_format(Debug::$time, 4, '~', ''), '~');
-			$file = dirname(self::$logFile) . "/exception $file.html";
-			self::$logHandle = @fopen($file, 'x');
-			if (self::$logHandle) {
-				ob_start(array(__CLASS__, '_writeFile'), 1);
-				self::_paintBlueScreen($exception);
-				ob_end_flush();
-				fclose(self::$logHandle);
-			}
-			if (self::$sendEmails) {
-				self::sendEmail((string) $exception);
+			try {
+				$hash = md5($exception/**/ . (method_exists($exception, 'getPrevious') ? $exception->getPrevious() : (isset($exception->previous) ? $exception->previous : ''))/**/);
+				error_log("PHP Fatal error:  Uncaught $exception");
+				foreach (new /*\*/DirectoryIterator(dirname(self::$logFile)) as $entry) {
+					if (strpos($entry, $hash)) {
+						$skip = TRUE;
+						break;
+					}
+				}
+				$file = dirname(self::$logFile) . "/exception " . @date('Y-m-d H-i-s') . " $hash.html";
+				if (empty($skip) && self::$logHandle = @fopen($file, 'x')) {
+					ob_start(); // double buffer prevents sending HTTP headers in some PHP
+					ob_start(array(__CLASS__, '_writeFile'), 1);
+					self::_paintBlueScreen($exception);
+					ob_end_flush();
+					ob_end_clean();
+					fclose(self::$logHandle);
+				}
+				if (self::$sendEmails) {
+					self::sendEmail((string) $exception);
+				}
+			} catch (/*\*/Exception $e) {
+				if (!headers_sent()) {
+					header('HTTP/1.1 500 Internal Server Error');
+				}
+				echo 'Nette\Debug fatal error: ', get_class($e), ': ', ($e->getCode() ? '#' . $e->getCode() . ' ' : '') . $e->getMessage(), "\n";
+				exit;
 			}
 
 		} elseif (self::$productionMode) {
@@ -644,8 +652,23 @@ final class Debug
 		}
 
 		foreach (self::$onFatalError as $handler) {
-			/**/fixCallback($handler);/**/
 			call_user_func($handler, $exception);
+		}
+	}
+
+
+
+	/**
+	 * Handles exception throwed in __toString().
+	 * @param  \Exception
+	 * @return void
+	 */
+	public static function toStringException(/*\*/Exception $exception)
+	{
+		if (self::$enabled) {
+			self::_exceptionHandler($exception);
+		} else {
+			trigger_error($exception->getMessage(), E_USER_ERROR);
 		}
 	}
 
@@ -718,7 +741,7 @@ final class Debug
 
 		$headers = str_replace(
 			array('%host%', '%date%', '%message%'),
-			array($host, @date('Y-m-d H:i:s', Debug::$time), $message), // intentionally @
+			array($host, @date('Y-m-d H:i:s', self::$time), $message), // intentionally @
 			self::$emailHeaders
 		);
 
@@ -777,7 +800,6 @@ final class Debug
 	 */
 	public static function addColophon($callback)
 	{
-		/**/fixCallback($callback);/**/
 		if (!is_callable($callback)) {
 			$able = is_callable($callback, TRUE, $textual);
 			throw new /*\*/InvalidArgumentException("Colophon handler '$textual' is not " . ($able ? 'callable.' : 'valid PHP callback.'));
@@ -798,7 +820,7 @@ final class Debug
 	private static function getDefaultColophons($sender)
 	{
 		if ($sender === 'profiler') {
-			$arr[] = 'Elapsed time: <b>' . number_format((microtime(TRUE) - Debug::$time) * 1000, 1, '.', ' ') . '</b> ms | Allocated memory: <b>' . number_format(memory_get_peak_usage() / 1000, 1, '.', ' ') . '</b> kB';
+			$arr[] = 'Elapsed time: <b>' . number_format((microtime(TRUE) - self::$time) * 1000, 1, '.', ' ') . '</b> ms | Allocated memory: <b>' . number_format(memory_get_peak_usage() / 1000, 1, '.', ' ') . '</b> kB';
 
 			foreach ((array) self::$counters as $name => $value) {
 				if (is_array($value)) $value = implode(', ', $value);
@@ -826,14 +848,14 @@ final class Debug
 		}
 
 		if ($sender === 'bluescreen') {
-			$arr[] = 'Report generated at ' . @date('Y/m/d H:i:s', Debug::$time); // intentionally @
+			$arr[] = 'Report generated at ' . @date('Y/m/d H:i:s', self::$time); // intentionally @
 			if (isset($_SERVER['HTTP_HOST'], $_SERVER['REQUEST_URI'])) {
 				$url = (isset($_SERVER['HTTPS']) && strcasecmp($_SERVER['HTTPS'], 'off') ? 'https://' : 'http://') . htmlSpecialChars($_SERVER['HTTP_HOST'] . $_SERVER['REQUEST_URI']);
 				$arr[] = '<a href="' . $url . '">' . $url . '</a>';
 			}
 			$arr[] = 'PHP ' . htmlSpecialChars(PHP_VERSION);
 			if (isset($_SERVER['SERVER_SOFTWARE'])) $arr[] = htmlSpecialChars($_SERVER['SERVER_SOFTWARE']);
-			$arr[] = htmlSpecialChars(Framework::NAME . ' ' . Framework::VERSION) . ' <i>(revision ' . htmlSpecialChars(Framework::REVISION) . ')</i>';
+			if (class_exists(/*Nette\*/'Framework')) $arr[] = htmlSpecialChars('Nette Framework ' . Framework::VERSION) . ' <i>(revision ' . htmlSpecialChars(Framework::REVISION) . ')</i>';
 		}
 		return $arr;
 	}
@@ -958,6 +980,3 @@ final class Debug
 
 
 Debug::_init();
-
-// hint:
-// if (!function_exists('dump')) { function dump($var, $return = FALSE) { return /*\Nette\*/Debug::dump($var, $return); } }

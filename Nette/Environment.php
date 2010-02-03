@@ -3,14 +3,7 @@
 /**
  * Nette Framework
  *
- * Copyright (c) 2004, 2009 David Grudl (http://davidgrudl.com)
- *
- * This source file is subject to the "Nette license" that is bundled
- * with this package in the file license.txt.
- *
- * For more information please see http://nettephp.com
- *
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @license    http://nettephp.com/license  Nette license
  * @link       http://nettephp.com
  * @category   Nette
@@ -24,8 +17,7 @@
 /**
  * Nette environment and configuration.
  *
- * @author     David Grudl
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @package    Nette
  */
 final class Environment
@@ -65,6 +57,7 @@ final class Environment
 
 	/** @var array */
 	private static $aliases = array(
+		'getHttpContext' => 'Nette\Web\HttpContext',
 		'getHttpRequest' => 'Nette\Web\IHttpRequest',
 		'getHttpResponse' => 'Nette\Web\IHttpResponse',
 		'getApplication' => 'Nette\Application\Application',
@@ -398,6 +391,16 @@ final class Environment
 	 * @return Nette\Web\HttpRequest
 	 */
 	public static function getHttpRequest()
+	{
+		return self::getServiceLocator()->getService(self::$aliases[__FUNCTION__]);
+	}
+
+
+
+	/**
+	 * @return Nette\Web\HttpContext
+	 */
+	public static function getHttpContext()
 	{
 		return self::getServiceLocator()->getService(self::$aliases[__FUNCTION__]);
 	}

@@ -3,14 +3,7 @@
 /**
  * Nette Framework
  *
- * Copyright (c) 2004, 2009 David Grudl (http://davidgrudl.com)
- *
- * This source file is subject to the "Nette license" that is bundled
- * with this package in the file license.txt.
- *
- * For more information please see http://nettephp.com
- *
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @license    http://nettephp.com/license  Nette license
  * @link       http://nettephp.com
  * @category   Nette
@@ -21,15 +14,10 @@
 
 
 
-require_once dirname(__FILE__) . '/../Collections/Hashtable.php';
-
-
-
 /**
  * Configuration storage.
  *
- * @author     David Grudl
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @package    Nette\Config
  */
 class Config extends /*Nette\Collections\*/Hashtable
@@ -42,7 +30,6 @@ class Config extends /*Nette\Collections\*/Hashtable
 	/** @var array */
 	private static $extensions = array(
 		'ini' => /*Nette\Config\*/'ConfigAdapterIni',
-		'xml' => /*Nette\Config\*/'ConfigAdapterXml',
 	);
 
 
@@ -59,8 +46,7 @@ class Config extends /*Nette\Collections\*/Hashtable
 			throw new /*\*/InvalidArgumentException("Class '$class' was not found.");
 		}
 
-		$reflection = new /*\*/ReflectionClass($class);
-		if (!$reflection->implementsInterface(/*Nette\Config\*/'IConfigAdapter')) {
+		if (!/*Nette\Reflection\*/ClassReflection::from($class)->implementsInterface(/*Nette\Config\*/'IConfigAdapter')) {
 			throw new /*\*/InvalidArgumentException("Configuration adapter '$class' is not Nette\\Config\\IConfigAdapter implementor.");
 		}
 

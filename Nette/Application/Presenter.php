@@ -3,14 +3,7 @@
 /**
  * Nette Framework
  *
- * Copyright (c) 2004, 2009 David Grudl (http://davidgrudl.com)
- *
- * This source file is subject to the "Nette license" that is bundled
- * with this package in the file license.txt.
- *
- * For more information please see http://nettephp.com
- *
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @license    http://nettephp.com/license  Nette license
  * @link       http://nettephp.com
  * @category   Nette
@@ -23,17 +16,10 @@
 
 
 
-require_once dirname(__FILE__) . '/../Application/Control.php';
-
-require_once dirname(__FILE__) . '/../Application/IPresenter.php';
-
-
-
 /**
  * Presenter object represents a webpage instance. It executes all the logic for the request.
  *
- * @author     David Grudl
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @package    Nette\Application
  *
  * @property-read PresenterRequest $request
@@ -47,7 +33,7 @@ require_once dirname(__FILE__) . '/../Application/IPresenter.php';
  */
 abstract class Presenter extends Control implements IPresenter
 {
-	/**#@+ life cycle phases {@link Presenter::getPhase()} */
+	/**#@+ @deprecated */
 	const PHASE_STARTUP = 1;
 	const PHASE_SIGNAL = 3;
 	const PHASE_RENDER = 4;
@@ -241,7 +227,7 @@ abstract class Presenter extends Control implements IPresenter
 			$this->phase = self::PHASE_SHUTDOWN;
 
 			if ($this->isAjax()) try {
-				$hasPayload = count((array) $this->payload) > 1; // ignore 'state'
+				$hasPayload = (array) $this->payload; unset($hasPayload['state']);
 				if ($this->response instanceof RenderResponse && ($this->isControlInvalid() || $hasPayload)) { // snippets - TODO
 					/*Nette\Templates\*/SnippetHelper::$outputAllowed = FALSE;
 					$this->response->send();
@@ -266,11 +252,11 @@ abstract class Presenter extends Control implements IPresenter
 
 
 	/**
-	 * Returns current presenter life cycle phase.
-	 * @return int
+	 * @deprecated
 	 */
 	final public function getPhase()
 	{
+		throw new /*\*/DeprecatedException(__METHOD__ . '() is deprecated.');
 		return $this->phase;
 	}
 
@@ -802,71 +788,26 @@ abstract class Presenter extends Control implements IPresenter
 
 	/**
 	 * Attempts to cache the sent entity by its last modification date
-	 * @param  int    last modified time as unix timestamp
+	 * @param  string|int|DateTime  last modified time
 	 * @param  string strong entity tag validator
 	 * @param  mixed  optional expiration time
-	 * @return int    date of the client's cache version, if available
+	 * @return void
 	 * @throws AbortException
+	 * @deprecated
 	 */
 	public function lastModified($lastModified, $etag = NULL, $expire = NULL)
 	{
 		if (!Environment::isProduction()) {
-			return NULL;
-		}
-
-		$httpResponse = $this->getHttpResponse();
-		$match = FALSE;
-
-		if ($lastModified > 0) {
-			$httpResponse->setHeader('Last-Modified', /*Nette\Web\*/HttpResponse::date($lastModified));
-		}
-
-		if ($etag != NULL) { // intentionally ==
-			$etag = '"' . addslashes($etag) . '"';
-			$httpResponse->setHeader('ETag', $etag);
+			return;
 		}
 
 		if ($expire !== NULL) {
-			$httpResponse->expire($expire);
+			$this->getHttpResponse()->setExpiration($expire);
 		}
 
-		$ifNoneMatch = $this->getHttpRequest()->getHeader('if-none-match');
-		$ifModifiedSince = $this->getHttpRequest()->getHeader('if-modified-since');
-		if ($ifModifiedSince !== NULL) {
-			$ifModifiedSince = strtotime($ifModifiedSince);
-		}
-
-		if ($ifNoneMatch !== NULL) {
-			if ($ifNoneMatch === '*') {
-				$match = TRUE; // match, check if-modified-since
-
-			} elseif ($etag == NULL || strpos(' ' . strtr($ifNoneMatch, ",\t", '  '), ' ' . $etag) === FALSE) {
-				return $ifModifiedSince; // no match, ignore if-modified-since
-
-			} else {
-				$match = TRUE; // match, check if-modified-since
-			}
-		}
-
-		if ($ifModifiedSince !== NULL) {
-			if ($lastModified > 0 && $lastModified <= $ifModifiedSince) {
-				$match = TRUE;
-
-			} else {
-				return $ifModifiedSince;
-			}
-		}
-
-		if ($match) {
-			$httpResponse->setCode(/*Nette\Web\*/IHttpResponse::S304_NOT_MODIFIED);
-			$httpResponse->setHeader('Content-Length', '0');
+		if (!$this->getHttpContext()->isModified($lastModified, $etag)) {
 			$this->terminate();
-
-		} else {
-			return $ifModifiedSince;
 		}
-
-		return NULL;
 	}
 
 
@@ -945,7 +886,7 @@ abstract class Presenter extends Control implements IPresenter
 		if ($a === FALSE) {
 			$action = $destination === 'this' ? $this->action : $destination;
 			$presenter = $this->getName();
-			$presenterClass = $this->getClass();
+			$presenterClass = get_class($this);
 
 		} else {
 			$action = (string) substr($destination, $a + 1);
@@ -969,26 +910,26 @@ abstract class Presenter extends Control implements IPresenter
 
 		// PROCESS SIGNAL ARGUMENTS
 		if (isset($signal)) { // $component must be IStatePersistent
-			$class = get_class($component);
+			$reflection = new PresenterComponentReflection(get_class($component));
 			if ($signal === 'this') { // means "no signal"
 				$signal = '';
 				if (array_key_exists(0, $args)) {
-					throw new InvalidLinkException("Extra parameter for signal '$class:$signal!'.");
+					throw new InvalidLinkException("Extra parameter for signal '{$reflection->name}:$signal!'.");
 				}
 
 			} elseif (strpos($signal, self::NAME_SEPARATOR) === FALSE) { // TODO: AppForm exception
 				// counterpart of signalReceived() & tryCall()
 				$method = $component->formatSignalMethod($signal);
-				if (!PresenterHelpers::isMethodCallable($class, $method)) {
-					throw new InvalidLinkException("Unknown signal '$class:$signal!'.");
+				if (!$reflection->hasCallableMethod($method)) {
+					throw new InvalidLinkException("Unknown signal '{$reflection->name}:$signal!'.");
 				}
 				if ($args) { // convert indexed parameters to named
-					PresenterHelpers::argsToParams($class, $method, $args);
+					self::argsToParams(get_class($component), $method, $args);
 				}
 			}
 
 			// counterpart of IStatePersistent
-			if ($args && array_intersect_key($args, PresenterHelpers::getPersistentParams($class))) {
+			if ($args && array_intersect_key($args, $reflection->getPersistentParams())) {
 				$component->saveState($args);
 			}
 
@@ -1008,16 +949,17 @@ abstract class Presenter extends Control implements IPresenter
 				/**/$action = self::$defaultAction;/**/
 			}
 
-			$current = ($action === '*' || $action === $this->action) && $presenterClass === $this->getClass(); // TODO
+			$current = ($action === '*' || $action === $this->action) && $presenterClass === get_class($this); // TODO
 
+			$reflection = new PresenterComponentReflection($presenterClass);
 			if ($args || $destination === 'this') {
 				// counterpart of run() & tryCall()
 				/*$method = $presenterClass::formatActionMethod($action);*/ // in PHP 5.3
 				/**/$method = call_user_func(array($presenterClass, 'formatActionMethod'), $action);/**/
-				if (!PresenterHelpers::isMethodCallable($presenterClass, $method)) {
+				if (!$reflection->hasCallableMethod($method)) {
 					/*$method = $presenterClass::formatRenderMethod($action);*/ // in PHP 5.3
 					/**/$method = call_user_func(array($presenterClass, 'formatRenderMethod'), $action);/**/
-					if (!PresenterHelpers::isMethodCallable($presenterClass, $method)) {
+					if (!$reflection->hasCallableMethod($method)) {
 						$method = NULL;
 					}
 				}
@@ -1029,16 +971,16 @@ abstract class Presenter extends Control implements IPresenter
 					}
 
 				} elseif ($destination === 'this') {
-					PresenterHelpers::argsToParams($presenterClass, $method, $args, $this->params);
+					self::argsToParams($presenterClass, $method, $args, $this->params);
 
 				} else {
-					PresenterHelpers::argsToParams($presenterClass, $method, $args);
+					self::argsToParams($presenterClass, $method, $args);
 				}
 			}
 
 			// counterpart of IStatePersistent
-			if ($args && array_intersect_key($args, PresenterHelpers::getPersistentParams($presenterClass))) {
-				$this->saveState($args, $presenterClass);
+			if ($args && array_intersect_key($args, $reflection->getPersistentParams())) {
+				$this->saveState($args, $reflection);
 			}
 
 			$globalState = $this->getGlobalState($destination === 'this' ? NULL : $presenterClass);
@@ -1097,6 +1039,54 @@ abstract class Presenter extends Control implements IPresenter
 
 
 	/**
+	 * Converts list of arguments to named parameters.
+	 * @param  string  class name
+	 * @param  string  method name
+	 * @param  array   arguments
+	 * @param  array   supplemental arguments
+	 * @return void
+	 * @throws InvalidLinkException
+	 */
+	private static function argsToParams($class, $method, & $args, $supplemental = array())
+	{
+		static $cache;
+		$params = & $cache[strtolower($class . ':' . $method)];
+		if ($params === NULL) {
+			$params = /*Nette\Reflection\*/MethodReflection::from($class, $method)->getDefaultParameters();
+		}
+		$i = 0;
+		foreach ($params as $name => $def) {
+			if (array_key_exists($i, $args)) {
+				$args[$name] = $args[$i];
+				unset($args[$i]);
+				$i++;
+
+			} elseif (array_key_exists($name, $args)) {
+				// continue with process
+
+			} elseif (array_key_exists($name, $supplemental)) {
+				$args[$name] = $supplemental[$name];
+
+			} else {
+				continue;
+			}
+
+			if ($def === NULL) {
+				if ((string) $args[$name] === '') $args[$name] = NULL; // value transmit is unnecessary
+			} else {
+				settype($args[$name], gettype($def));
+				if ($args[$name] === $def) $args[$name] = NULL;
+			}
+		}
+
+		if (array_key_exists($i, $args)) {
+			throw new InvalidLinkException("Extra parameter for signal '$class:$method'.");
+		}
+	}
+
+
+
+	/**
 	 * Invalid link handler. Descendant can override this method to change default behaviour.
 	 * @param  InvalidLinkException
 	 * @return string
@@ -1113,7 +1103,7 @@ abstract class Presenter extends Control implements IPresenter
 			return '#';
 
 		} elseif (self::$invalidLinkMode === self::INVALID_LINK_WARNING) {
-			return 'error: ' . htmlSpecialChars($e->getMessage());
+			return 'error: ' . $e->getMessage();
 
 		} else { // self::INVALID_LINK_EXCEPTION
 			throw $e;
@@ -1133,7 +1123,7 @@ abstract class Presenter extends Control implements IPresenter
 	 */
 	public static function getPersistentComponents()
 	{
-		return (array) /*Nette\*/Annotations::get(new /*\*/ReflectionClass(/**/func_get_arg(0)/**//*get_called_class()*/), 'persistent');
+		return (array) /*Nette\Reflection\*/ClassReflection::from(/**/func_get_arg(0)/**//*get_called_class()*/)->getAnnotation('persistent');
 	}
 
 
@@ -1147,10 +1137,6 @@ abstract class Presenter extends Control implements IPresenter
 		$sinces = & $this->globalStateSinces;
 
 		if ($this->globalState === NULL) {
-			if ($this->phase >= self::PHASE_SHUTDOWN) {
-				throw new /*\*/InvalidStateException("Presenter is shutting down, cannot save state.");
-			}
-
 			$state = array();
 			foreach ($this->globalParams as $id => $params) {
 				$prefix = $id . self::NAME_SEPARATOR;
@@ -1158,16 +1144,16 @@ abstract class Presenter extends Control implements IPresenter
 					$state[$prefix . $key] = $val;
 				}
 			}
-			$this->saveState($state, $forClass);
+			$this->saveState($state, $forClass ? new PresenterComponentReflection($forClass) : NULL);
 
 			if ($sinces === NULL) {
 				$sinces = array();
-				foreach (PresenterHelpers::getPersistentParams(get_class($this)) as $nm => $meta) {
+				foreach ($this->getReflection()->getPersistentParams() as $nm => $meta) {
 					$sinces[$nm] = $meta['since'];
 				}
 			}
 
-			$components = PresenterHelpers::getPersistentComponents(get_class($this));
+			$components = $this->getReflection()->getPersistentComponents();
 			$iterator = $this->getComponents(TRUE, 'Nette\Application\IStatePersistent');
 			foreach ($iterator as $name => $component)
 			{
@@ -1332,7 +1318,7 @@ abstract class Presenter extends Control implements IPresenter
 
 
 	/**
-	 * @return Nette\Web\IHttpRequest
+	 * @return Nette\Web\HttpRequest
 	 */
 	protected function getHttpRequest()
 	{
@@ -1342,11 +1328,21 @@ abstract class Presenter extends Control implements IPresenter
 
 
 	/**
-	 * @return Nette\Web\IHttpResponse
+	 * @return Nette\Web\HttpResponse
 	 */
 	protected function getHttpResponse()
 	{
 		return Environment::getHttpResponse();
+	}
+
+
+
+	/**
+	 * @return Nette\Web\HttpContext
+	 */
+	protected function getHttpContext()
+	{
+		return Environment::getHttpContext();
 	}
 
 

@@ -3,14 +3,7 @@
 /**
  * Nette Framework
  *
- * Copyright (c) 2004, 2009 David Grudl (http://davidgrudl.com)
- *
- * This source file is subject to the "Nette license" that is bundled
- * with this package in the file license.txt.
- *
- * For more information please see http://nettephp.com
- *
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @license    http://nettephp.com/license  Nette license
  * @link       http://nettephp.com
  * @category   Nette
@@ -21,15 +14,10 @@
 
 
 
-require_once dirname(__FILE__) . '/../Object.php';
-
-
-
 /**
  * Provides access to session namespaces as well as session settings and management methods.
  *
- * @author     David Grudl
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @package    Nette\Web
  */
 class Session extends /*Nette\*/Object
@@ -94,14 +82,10 @@ class Session extends /*Nette\*/Object
 
 
 		// additional protection against Session Hijacking & Fixation
+		$verKey = NULL;
 		if ($this->verificationKeyGenerator) {
-			/**/fixCallback($this->verificationKeyGenerator);/**/
-			if (!is_callable($this->verificationKeyGenerator)) {
-				$able = is_callable($this->verificationKeyGenerator, TRUE, $textual);
-				throw new /*\*/InvalidStateException("Verification key generator '$textual' is not " . ($able ? 'callable.' : 'valid PHP callback.'));
-			}
+			$verKey = (string) callback($this->verificationKeyGenerator)->invoke();
 		}
-
 
 		// start session
 		try {
@@ -124,60 +108,59 @@ class Session extends /*Nette\*/Object
 		}
 
 		/* structure:
-			nette: __NT
-			data:  __NS->namespace->variable = data
-			meta:  __NM->namespace->EXP->variable = timestamp
+			__NF: VerificationKey, Counter, BrowserKey, Data, Meta
+				DATA: namespace->variable = data
+				META: namespace->variable = Timestamp, Browser, Version
 		*/
 
 		// initialize structures
-		$verKey = $this->verificationKeyGenerator ? (string) call_user_func($this->verificationKeyGenerator) : NULL;
-		if (!isset($_SESSION['__NT']['V'])) { // new session
-			$_SESSION['__NT'] = array();
-			$_SESSION['__NT']['C'] = 0;
-			$_SESSION['__NT']['V'] = $verKey;
+		if (!isset($_SESSION['__NF']['V'])) { // new session
+			$_SESSION['__NF'] = array();
+			$_SESSION['__NF']['C'] = 0;
+			$_SESSION['__NF']['V'] = $verKey;
 
 		} else {
-			$saved = & $_SESSION['__NT']['V'];
-			if ($verKey == NULL || $verKey === $saved) { // verified
-				$_SESSION['__NT']['C']++;
+			$saved = & $_SESSION['__NF']['V'];
+			if (!$this->verificationKeyGenerator || $verKey === $saved) { // ignored or verified
+				$_SESSION['__NF']['C']++;
 
 			} else { // session attack?
 				session_regenerate_id(TRUE);
 				$_SESSION = array();
-				$_SESSION['__NT']['C'] = 0;
-				$_SESSION['__NT']['V'] = $verKey;
+				$_SESSION['__NF']['C'] = 0;
+				$_SESSION['__NF']['V'] = $verKey;
 			}
 		}
+		$nf = & $_SESSION['__NF'];
+		unset($_SESSION['__NT'], $_SESSION['__NS'], $_SESSION['__NM']); // old structures
 
 		// browser closing detection
 		$browserKey = $this->getHttpRequest()->getCookie('nette-browser');
 		if (!$browserKey) {
 			$browserKey = (string) lcg_value();
 		}
-		$browserClosed = !isset($_SESSION['__NT']['B']) || $_SESSION['__NT']['B'] !== $browserKey;
-		$_SESSION['__NT']['B'] = $browserKey;
+		$browserClosed = !isset($nf['B']) || $nf['B'] !== $browserKey;
+		$nf['B'] = $browserKey;
 
 		// resend cookie
 		$this->sendCookie();
 
 		// process meta metadata
-		if (isset($_SESSION['__NM'])) {
+		if (isset($nf['META'])) {
 			$now = time();
-
 			// expire namespace variables
-			foreach ($_SESSION['__NM'] as $namespace => $metadata) {
-				if (isset($metadata['EXP'])) {
-					foreach ($metadata['EXP'] as $variable => $value) {
-						if (!is_array($value)) $value = array($value, !$value); // back compatibility
+			foreach ($nf['META'] as $namespace => $metadata) {
+				if (is_array($metadata)) {
+					foreach ($metadata as $variable => $value) {
+						if ((!empty($value['B']) && $browserClosed) || (!empty($value['T']) && $now > $value['T']) // whenBrowserIsClosed || Time
+							|| ($variable !== '' && is_object($nf['DATA'][$namespace][$variable]) && (isset($value['V']) ? $value['V'] : NULL) // Version
+								!== /*Nette\Reflection\*/ClassReflection::from($nf['DATA'][$namespace][$variable])->getAnnotation('serializationVersion'))) {
 
-						list($time, $whenBrowserIsClosed) = $value;
-						if (($whenBrowserIsClosed && $browserClosed) || ($time && $now > $time)) {
 							if ($variable === '') { // expire whole namespace
-								unset($_SESSION['__NM'][$namespace], $_SESSION['__NS'][$namespace]);
+								unset($nf['META'][$namespace], $nf['DATA'][$namespace]);
 								continue 2;
 							}
-							unset($_SESSION['__NS'][$namespace][$variable],
-								$_SESSION['__NM'][$namespace]['EXP'][$variable]);
+							unset($nf['META'][$namespace][$variable], $nf['DATA'][$namespace][$variable]);
 						}
 					}
 				}
@@ -207,6 +190,7 @@ class Session extends /*Nette\*/Object
 	public function close()
 	{
 		if (self::$started) {
+			$this->clean();
 			session_write_close();
 			self::$started = FALSE;
 		}
@@ -347,7 +331,7 @@ class Session extends /*Nette\*/Object
 			$this->start();
 		}
 
-		return new $class($_SESSION['__NS'][$namespace], $_SESSION['__NM'][$namespace]);
+		return new $class($_SESSION['__NF']['DATA'][$namespace], $_SESSION['__NF']['META'][$namespace]);
 	}
 
 
@@ -363,7 +347,7 @@ class Session extends /*Nette\*/Object
 			$this->start();
 		}
 
-		return !empty($_SESSION['__NS'][$namespace]);
+		return !empty($_SESSION['__NF']['DATA'][$namespace]);
 	}
 
 
@@ -378,8 +362,8 @@ class Session extends /*Nette\*/Object
 			$this->start();
 		}
 
-		if (isset($_SESSION['__NS'])) {
-			return new /*\*/ArrayIterator(array_keys($_SESSION['__NS']));
+		if (isset($_SESSION['__NF']['DATA'])) {
+			return new /*\*/ArrayIterator(array_keys($_SESSION['__NF']['DATA']));
 
 		} else {
 			return new /*\*/ArrayIterator;
@@ -398,24 +382,21 @@ class Session extends /*Nette\*/Object
 			return;
 		}
 
-		if (isset($_SESSION['__NM']) && is_array($_SESSION['__NM'])) {
-			foreach ($_SESSION['__NM'] as $name => $foo) {
-				if (empty($_SESSION['__NM'][$name]['EXP'])) {
-					unset($_SESSION['__NM'][$name]['EXP']);
-				}
-
-				if (empty($_SESSION['__NM'][$name])) {
-					unset($_SESSION['__NM'][$name]);
+		$nf = & $_SESSION['__NF'];
+		if (isset($nf['META']) && is_array($nf['META'])) {
+			foreach ($nf['META'] as $name => $foo) {
+				if (empty($nf['META'][$name])) {
+					unset($nf['META'][$name]);
 				}
 			}
 		}
 
-		if (empty($_SESSION['__NM'])) {
-			unset($_SESSION['__NM']);
+		if (empty($nf['META'])) {
+			unset($nf['META']);
 		}
 
-		if (empty($_SESSION['__NS'])) {
-			unset($_SESSION['__NS']);
+		if (empty($nf['DATA'])) {
+			unset($nf['DATA']);
 		}
 
 		if (empty($_SESSION)) {
@@ -513,28 +494,22 @@ class Session extends /*Nette\*/Object
 
 	/**
 	 * Sets the amount of time allowed between requests before the session will be terminated.
-	 * @param  mixed  number of seconds, value 0 means "until the browser is closed"
+	 * @param  string|int|DateTime  time, value 0 means "until the browser is closed"
 	 * @return Session  provides a fluent interface
 	 */
-	public function setExpiration($seconds)
+	public function setExpiration($time)
 	{
-		if (is_string($seconds) && !is_numeric($seconds)) {
-			$seconds = strtotime($seconds);
-		}
-
-		if ($seconds <= 0) {
+		if (empty($time)) {
 			return $this->setOptions(array(
 				'gc_maxlifetime' => self::DEFAULT_FILE_LIFETIME,
 				'cookie_lifetime' => 0,
 			));
 
 		} else {
-			if ($seconds > /*Nette\*/Tools::YEAR) {
-				$seconds -= time();
-			}
+			$time = /*Nette\*/Tools::createDateTime($time)->format('U');
 			return $this->setOptions(array(
-				'gc_maxlifetime' => $seconds,
-				'cookie_lifetime' => $seconds,
+				'gc_maxlifetime' => $time,
+				'cookie_lifetime' => $time,
 			));
 		}
 	}
@@ -591,7 +566,7 @@ class Session extends /*Nette\*/Object
 	{
 		$cookie = $this->getCookieParams();
 		$this->getHttpResponse()->setCookie(session_name(), session_id(), $cookie['lifetime'], $cookie['path'], $cookie['domain'], $cookie['secure'], $cookie['httponly']);
-		$this->getHttpResponse()->setCookie('nette-browser', $_SESSION['__NT']['B'], HttpResponse::BROWSER, $cookie['path'], $cookie['domain'], $cookie['secure'], $cookie['httponly']);
+		$this->getHttpResponse()->setCookie('nette-browser', $_SESSION['__NF']['B'], HttpResponse::BROWSER, $cookie['path'], $cookie['domain'], $cookie['secure'], $cookie['httponly']);
 	}
 
 

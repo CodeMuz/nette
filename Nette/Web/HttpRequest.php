@@ -3,14 +3,7 @@
 /**
  * Nette Framework
  *
- * Copyright (c) 2004, 2009 David Grudl (http://davidgrudl.com)
- *
- * This source file is subject to the "Nette license" that is bundled
- * with this package in the file license.txt.
- *
- * For more information please see http://nettephp.com
- *
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @license    http://nettephp.com/license  Nette license
  * @link       http://nettephp.com
  * @category   Nette
@@ -21,17 +14,10 @@
 
 
 
-require_once dirname(__FILE__) . '/../Object.php';
-
-require_once dirname(__FILE__) . '/../Web/IHttpRequest.php';
-
-
-
 /**
  * HttpRequest provides access scheme for request sent via HTTP.
  *
- * @author     David Grudl
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @package    Nette\Web
  *
  * @property   UriScript $uri
@@ -485,7 +471,7 @@ class HttpRequest extends /*Nette\*/Object implements IHttpRequest
 								if (!/*Nette\*/String::checkEncoding($v)) {
 									$v = iconv($this->encoding, 'UTF-8//IGNORE', $v);
 								}
-								$v = html_entity_decode($v, ENT_NOQUOTES, 'UTF-8');
+								$v = html_entity_decode($v, ENT_QUOTES, 'UTF-8');
 							}
 							$v = preg_replace($nonChars, '', $v);
 						}

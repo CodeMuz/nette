@@ -3,14 +3,7 @@
 /**
  * Nette Framework
  *
- * Copyright (c) 2004, 2009 David Grudl (http://davidgrudl.com)
- *
- * This source file is subject to the "Nette license" that is bundled
- * with this package in the file license.txt.
- *
- * For more information please see http://nettephp.com
- *
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @license    http://nettephp.com/license  Nette license
  * @link       http://nettephp.com
  * @category   Nette
@@ -18,10 +11,6 @@
  */
 
 /*namespace Nette;*/
-
-
-
-require_once dirname(__FILE__) . '/Object.php';
 
 
 
@@ -35,8 +24,7 @@ require_once dirname(__FILE__) . '/Object.php';
  * $image->send();
  * </code>
  *
- * @author     David Grudl
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @package    Nette
  */
 class ImageMagick extends Image
@@ -69,7 +57,7 @@ class ImageMagick extends Image
 	public function __construct($file, & $format = NULL)
 	{
 		if (!is_file($file)) {
-			throw new /*\*/InvalidArgumentException('File not found.');
+			throw new /*\*/InvalidArgumentException("File '$file' not found.");
 		}
 		$format = $this->setFile(realpath($file));
 		if ($format === 'JPEG') $format = self::JPEG;
@@ -130,14 +118,17 @@ class ImageMagick extends Image
 	 * @param  int    flags
 	 * @return ImageMagick  provides a fluent interface
 	 */
-	public function resize($newWidth, $newHeight, $flags = 0)
+	public function resize($width, $height, $flags = self::FIT)
 	{
 		if ($this->file === NULL) {
 			return parent::resize($newWidth, $newHeight, $flags);
 		}
 
-		list($newWidth, $newHeight) = $this->calculateSize($newWidth, $newHeight, $flags);
-		$this->execute("convert -resize {$newWidth}x{$newHeight}! -strip %input %output", self::PNG);
+		$mirror = '';
+		if ($width < 0) $mirror .= ' -flop';
+		if ($height < 0) $mirror .= ' -flip';
+		list($newWidth, $newHeight) = self::calculateSize($this->getWidth(), $this->getHeight(), $width, $height, $flags);
+		$this->execute("convert -resize {$newWidth}x{$newHeight}! {$mirror} -strip %input %output", self::PNG);
 		return $this;
 	}
 
@@ -223,7 +214,7 @@ class ImageMagick extends Image
 		if ($output) {
 			$newFile = is_string($output)
 				? $output
-				: (self::$tempDir ? self::$tempDir : dirname($this->file)) . '/_tempimage' . uniqid() . image_type_to_extension($output);
+				: (self::$tempDir ? self::$tempDir : dirname($this->file)) . '/' . uniqid('_tempimage', TRUE) . image_type_to_extension($output);
 			$command = str_replace('%output', escapeshellarg($newFile), $command);
 		}
 

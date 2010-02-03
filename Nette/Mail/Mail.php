@@ -3,14 +3,7 @@
 /**
  * Nette Framework
  *
- * Copyright (c) 2004, 2009 David Grudl (http://davidgrudl.com)
- *
- * This source file is subject to the "Nette license" that is bundled
- * with this package in the file license.txt.
- *
- * For more information please see http://nettephp.com
- *
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @license    http://nettephp.com/license  Nette license
  * @link       http://nettephp.com
  * @category   Nette
@@ -21,15 +14,10 @@
 
 
 
-require_once dirname(__FILE__) . '/../Mail/MailMimePart.php';
-
-
-
 /**
  * Mail provides functionality to compose and send both text and MIME-compliant multipart e-mail messages.
  *
- * @author     David Grudl
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @package    Nette\Mail
  *
  * @property   string $from
@@ -374,7 +362,7 @@ class Mail extends MailMimePart
 	public function getMailer()
 	{
 		if ($this->mailer === NULL) {
-			/**/fixNamespace(self::$defaultMailer);/**/
+			/**/Framework::fixNamespace(self::$defaultMailer);/**/
 			$this->mailer = is_object(self::$defaultMailer) ? self::$defaultMailer : new self::$defaultMailer;
 		}
 		return $this->mailer;
@@ -475,6 +463,7 @@ class Mail extends MailMimePart
 
 		} elseif ($text == NULL && $this->html != NULL) { // intentionally ==
 			$text = preg_replace('#<(style|script|head).*</\\1>#Uis', '', $this->html);
+			$text = preg_replace('#<t[dh][ >]#i', " $0", $text);
 			$text = preg_replace('#[ \t\r\n]+#', ' ', $text);
 			$text = preg_replace('#<(/?p|/?h\d|li|br|/tr)[ >]#i', "\n$0", $text);
 			$text = html_entity_decode(strip_tags($text), ENT_QUOTES, $this->charset);

@@ -3,14 +3,7 @@
 /**
  * Nette Framework
  *
- * Copyright (c) 2004, 2009 David Grudl (http://davidgrudl.com)
- *
- * This source file is subject to the "Nette license" that is bundled
- * with this package in the file license.txt.
- *
- * For more information please see http://nettephp.com
- *
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @license    http://nettephp.com/license  Nette license
  * @link       http://nettephp.com
  * @category   Nette
@@ -21,19 +14,12 @@
 
 
 
-require_once dirname(__FILE__) . '/IComponent.php';
-
-require_once dirname(__FILE__) . '/Object.php';
-
-
-
 /**
  * Component is the base class for all components.
  *
  * Components are objects implementing IComponent. They has parent component and own name.
  *
- * @author     David Grudl
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @package    Nette
  *
  * @property-read string $name
@@ -74,7 +60,7 @@ abstract class Component extends Object implements IComponent
 	 */
 	public function lookup($type, $need = TRUE)
 	{
-		/**/fixNamespace($type);/**/
+		/**/Framework::fixNamespace($type);/**/
 
 		if (!isset($this->monitors[$type])) { // not monitored or not processed yet
 			$obj = $this->parent;
@@ -114,7 +100,7 @@ abstract class Component extends Object implements IComponent
 	 */
 	public function lookupPath($type, $need = TRUE)
 	{
-		/**/fixNamespace($type);/**/
+		/**/Framework::fixNamespace($type);/**/
 		$this->lookup($type, $need);
 		return $this->monitors[$type][2];
 	}
@@ -128,7 +114,7 @@ abstract class Component extends Object implements IComponent
 	 */
 	public function monitor($type)
 	{
-		/**/fixNamespace($type);/**/
+		/**/Framework::fixNamespace($type);/**/
 		if (empty($this->monitors[$type][3])) {
 			if ($obj = $this->lookup($type, FALSE)) {
 				$this->attached($obj);
@@ -146,7 +132,7 @@ abstract class Component extends Object implements IComponent
 	 */
 	public function unmonitor($type)
 	{
-		/**/fixNamespace($type);/**/
+		/**/Framework::fixNamespace($type);/**/
 		unset($this->monitors[$type]);
 	}
 
@@ -227,20 +213,10 @@ abstract class Component extends Object implements IComponent
 
 		// remove from parent?
 		if ($parent === NULL) {
-			// parent cannot be removed if is still this component contains
-			if ($this->parent->getComponent($this->name, FALSE) === $this) {
-				throw new /*\*/InvalidStateException("The current parent still recognizes component '$this->name' as its child.");
-			}
-
 			$this->refreshMonitors(0);
 			$this->parent = NULL;
 
 		} else { // add to parent
-			// Given parent container does not already recognize this component as its child.
-			if ($parent->getComponent($name, FALSE) !== $this) {
-				throw new /*\*/InvalidStateException("The given parent does not recognize component '$name' as its child.");
-			}
-
 			$this->validateParent($parent);
 			$this->parent = $parent;
 			if ($name !== NULL) $this->name = $name;

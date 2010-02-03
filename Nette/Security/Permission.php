@@ -3,14 +3,7 @@
 /**
  * Nette Framework
  *
- * Copyright (c) 2004, 2009 David Grudl (http://davidgrudl.com)
- *
- * This source file is subject to the "Nette license" that is bundled
- * with this package in the file license.txt.
- *
- * For more information please see http://nettephp.com
- *
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @license    http://nettephp.com/license  Nette license
  * @link       http://nettephp.com
  * @category   Nette
@@ -21,20 +14,13 @@
 
 
 
-require_once dirname(__FILE__) . '/../Security/IAuthorizator.php';
-
-require_once dirname(__FILE__) . '/../Object.php';
-
-
-
 /**
  * Access control list (ACL) functionality and privileges management.
  *
  * This solution is mostly based on Zend_Acl (c) Zend Technologies USA Inc. (http://www.zend.com), new BSD license
  *
- * @author     David Grudl
  * @copyright  Copyright (c) 2005, 2007 Zend Technologies USA Inc.
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @package    Nette\Security
  */
 class Permission extends /*Nette\*/Object implements IAuthorizator
@@ -232,9 +218,11 @@ class Permission extends /*Nette\*/Object implements IAuthorizator
 		}
 
 		foreach ($this->rules['byResource'] as $resourceCurrent => $visitor) {
-			foreach ($visitor['byRole'] as $roleCurrent => $rules) {
-				if ($role === $roleCurrent) {
-					unset($this->rules['byResource'][$resourceCurrent]['byRole'][$roleCurrent]);
+			if (isset($visitor['byRole'])) {
+				foreach ($visitor['byRole'] as $roleCurrent => $rules) {
+					if ($role === $roleCurrent) {
+						unset($this->rules['byResource'][$resourceCurrent]['byRole'][$roleCurrent]);
+					}
 				}
 			}
 		}

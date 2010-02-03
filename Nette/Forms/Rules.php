@@ -3,14 +3,7 @@
 /**
  * Nette Framework
  *
- * Copyright (c) 2004, 2009 David Grudl (http://davidgrudl.com)
- *
- * This source file is subject to the "Nette license" that is bundled
- * with this package in the file license.txt.
- *
- * For more information please see http://nettephp.com
- *
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @license    http://nettephp.com/license  Nette license
  * @link       http://nettephp.com
  * @category   Nette
@@ -21,15 +14,10 @@
 
 
 
-require_once dirname(__FILE__) . '/../Object.php';
-
-
-
 /**
  * List of validation & condition rules.
  *
- * @author     David Grudl
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @package    Nette\Forms
  */
 final class Rules extends /*Nette\*/Object implements /*\*/IteratorAggregate
@@ -183,7 +171,7 @@ final class Rules extends /*Nette\*/Object implements /*\*/IteratorAggregate
 		{
 			if ($rule->control->isDisabled()) continue;
 
-			$success = ($rule->isNegative xor call_user_func($this->getCallback($rule), $rule->control, $rule->arg));
+			$success = ($rule->isNegative xor $this->getCallback($rule)->invoke($rule->control, $rule->arg));
 
 			if ($rule->type === Rule::CONDITION && $success) {
 				$success = $rule->subRules->validate($onlyCheck);
@@ -193,7 +181,7 @@ final class Rules extends /*Nette\*/Object implements /*\*/IteratorAggregate
 				if ($onlyCheck) {
 					return FALSE;
 				}
-				$rule->control->addError(vsprintf($rule->control->translate($rule->message), (array) $rule->arg));
+				$rule->control->addError(self::formatMessage($rule));
 				$valid = FALSE;
 				if ($rule->breakOnFailure) {
 					break;
@@ -238,8 +226,7 @@ final class Rules extends /*Nette\*/Object implements /*\*/IteratorAggregate
 			$rule->operation = ~$rule->operation;
 		}
 
-		// check callback
-		if (!is_callable($this->getCallback($rule))) {
+		if (!$this->getCallback($rule)->isCallable()) {
 			$operation = is_scalar($rule->operation) ? " '$rule->operation'" : '';
 			throw new /*\*/InvalidArgumentException("Unknown operation$operation for control '{$rule->control->name}'.");
 		}
@@ -251,12 +238,24 @@ final class Rules extends /*Nette\*/Object implements /*\*/IteratorAggregate
 	{
 		$op = $rule->operation;
 		if (is_string($op) && strncmp($op, ':', 1) === 0) {
-			return array($rule->control->getClass(), self::VALIDATE_PREFIX . ltrim($op, ':'));
-
+			return callback(get_class($rule->control), self::VALIDATE_PREFIX . ltrim($op, ':'));
 		} else {
-			/**/fixCallback($op);/**/
-			return $op;
+			return callback($op);
 		}
+	}
+
+
+
+	public static function formatMessage($rule)
+	{
+		$message = $rule->control->translate($rule->message, is_int($rule->arg) ? $rule->arg : NULL);
+		$message = str_replace('%name', $rule->control->getName(), $message);
+		$message = str_replace('%label', $rule->control->translate($rule->control->caption), $message);
+		if (strpos($message, '%value') !== FALSE) {
+			str_replace('%value', (string) $rule->control->getValue(), $message);
+		}	
+		$message = vsprintf($message, (array) $rule->arg);
+		return $message;
 	}
 
 }

@@ -3,14 +3,7 @@
 /**
  * Nette Framework
  *
- * Copyright (c) 2004, 2009 David Grudl (http://davidgrudl.com)
- *
- * This source file is subject to the "Nette license" that is bundled
- * with this package in the file license.txt.
- *
- * For more information please see http://nettephp.com
- *
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @license    http://nettephp.com/license  Nette license
  * @link       http://nettephp.com
  * @category   Nette
@@ -21,17 +14,10 @@
 
 
 
-require_once dirname(__FILE__) . '/Component.php';
-
-require_once dirname(__FILE__) . '/IComponentContainer.php';
-
-
-
 /**
  * ComponentContainer is default implementation of IComponentContainer.
  *
- * @author     David Grudl
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @package    Nette
  *
  * @property-read \ArrayIterator $components
@@ -156,7 +142,10 @@ class ComponentContainer extends Component implements IComponentContainer
 		}
 
 		if (!isset($this->components[$name])) {
-			$this->createComponent($name);
+			$component = $this->createComponent($name);
+			if ($component instanceof IComponent && $component->getParent() === NULL) {
+				$this->addComponent($component, $name);
+			}
 		}
 
 		if (isset($this->components[$name])) {
@@ -179,18 +168,15 @@ class ComponentContainer extends Component implements IComponentContainer
 
 	/**
 	 * Component factory. Delegates the creation of components to a createComponent<Name> method.
-	 * @param  string  component name
-	 * @return void
+	 * @param  string      component name
+	 * @return IComponent  the created component (optionally)
 	 */
 	protected function createComponent($name)
 	{
 		$ucname = ucfirst($name);
 		$method = 'createComponent' . $ucname;
 		if ($ucname !== $name && method_exists($this, $method) && $this->getReflection()->getMethod($method)->getName() === $method) {
-			$component = $this->$method($name);
-			if ($component instanceof IComponent && $component->getParent() === NULL) {
-				$this->addComponent($component, $name);
-			}
+			return $this->$method($name);
 		}
 	}
 
@@ -210,7 +196,7 @@ class ComponentContainer extends Component implements IComponentContainer
 			$iterator = new /*\*/RecursiveIteratorIterator($iterator, $deep);
 		}
 		if ($filterType) {
-			/**/fixNamespace($filterType);/**/
+			/**/Framework::fixNamespace($filterType);/**/
 			$iterator = new InstanceFilterIterator($iterator, $filterType);
 		}
 		return $iterator;
@@ -272,8 +258,7 @@ class ComponentContainer extends Component implements IComponentContainer
 /**
  * Recursive component iterator. See ComponentContainer::getComponents().
  *
- * @author     David Grudl
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @package    Nette
  */
 class RecursiveComponentIterator extends /*\*/RecursiveArrayIterator implements /*\*/Countable

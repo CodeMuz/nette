@@ -3,14 +3,7 @@
 /**
  * Nette Framework
  *
- * Copyright (c) 2004, 2009 David Grudl (http://davidgrudl.com)
- *
- * This source file is subject to the "Nette license" that is bundled
- * with this package in the file license.txt.
- *
- * For more information please see http://nettephp.com
- *
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @license    http://nettephp.com/license  Nette license
  * @link       http://nettephp.com
  * @category   Nette
@@ -18,10 +11,6 @@
  */
 
 /*namespace Nette\Web;*/
-
-
-
-require_once dirname(__FILE__) . '/../Object.php';
 
 
 
@@ -36,8 +25,7 @@ require_once dirname(__FILE__) . '/../Object.php';
  * echo $el->startTag(), $el->endTag();
  * </code>
  *
- * @author     David Grudl
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @package    Nette\Web
  */
 class Html extends /*Nette\*/Object implements /*\*/ArrayAccess, /*\*/Countable, /*\*/IteratorAggregate
@@ -255,15 +243,18 @@ class Html extends /*Nette\*/Object implements /*\*/ArrayAccess, /*\*/Countable,
 
 
 	/**
-	 * Gets element's textual content.
+	 * Returns element's HTML content.
 	 * @return string
 	 */
 	final public function getHtml()
 	{
 		$s = '';
 		foreach ($this->children as $child) {
-			if (is_object($child)) return FALSE;
-			$s .= $child;
+			if (is_object($child)) {
+				$s .= $child->render();
+			} else {
+				$s .= $child;
+			}
 		}
 		return $s;
 	}
@@ -287,11 +278,12 @@ class Html extends /*Nette\*/Object implements /*\*/ArrayAccess, /*\*/Countable,
 
 
 	/**
-	 * @deprecated
+	 * Returns element's textual content.
+	 * @return string
 	 */
 	final public function getText()
 	{
-		return $this->getHtml();
+		return html_entity_decode(strip_tags($this->getHtml()), ENT_QUOTES, 'UTF-8');
 	}
 
 
@@ -461,25 +453,23 @@ class Html extends /*Nette\*/Object implements /*\*/ArrayAccess, /*\*/Countable,
 	{
 		$s = $this->startTag();
 
-		// empty elements are finished now
-		if ($this->isEmpty) {
-			return $s;
-		}
-
-		// add content
-		if ($indent !== NULL) {
-			$indent++;
-		}
-		foreach ($this->children as $child) {
-			if (is_object($child)) {
-				$s .= $child->render($indent);
-			} else {
-				$s .= $child;
+		if (!$this->isEmpty) {
+			// add content
+			if ($indent !== NULL) {
+				$indent++;
 			}
+			foreach ($this->children as $child) {
+				if (is_object($child)) {
+					$s .= $child->render($indent);
+				} else {
+					$s .= $child;
+				}
+			}
+
+			// add end tag
+			$s .= $this->endTag();
 		}
 
-		// add end tag
-		$s .= $this->endTag();
 		if ($indent !== NULL) {
 			return "\n" . str_repeat("\t", $indent - 1) . $s . "\n" . str_repeat("\t", max(0, $indent - 2));
 		}
@@ -597,8 +587,7 @@ class Html extends /*Nette\*/Object implements /*\*/ArrayAccess, /*\*/Countable,
 /**
  * Recursive HTML element iterator. See Html::getIterator().
  *
- * @author     David Grudl
- * @copyright  Copyright (c) 2004, 2009 David Grudl
+ * @copyright  Copyright (c) 2004, 2010 David Grudl
  * @package    Nette\Web
  */
 class RecursiveHtmlIterator extends /*\*/RecursiveArrayIterator implements /*\*/Countable
